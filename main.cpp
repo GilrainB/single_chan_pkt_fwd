@@ -238,6 +238,11 @@ boolean receivePkt(char *payload)
     return true;
 }
 
+void SetupLoRa_Freq(uint32_t frequency){
+		freq = frequency;
+		SetupLoRa();
+}
+
 void SetupLoRa()
 {
     
@@ -289,12 +294,22 @@ void SetupLoRa()
         }
         writeRegister(REG_MODEM_CONFIG2,(sf<<4) | 0x04);
     } else {
+		/*
+		REG_MODEM_CONFIG3
+		bit 3 LowDataRateOptimize; 0 = Disabled, 1 = Enabled; mandated for when the symbol length exceeds 16ms
+		bit 2 AgcAutoOn; 0 = LNA gain set by register LnaGain, 1 = LNA gain set by the internal AGC loop
+		 */
         if (sf == SF11 || sf == SF12) {
             writeRegister(REG_MODEM_CONFIG3,0x0C);
         } else {
             writeRegister(REG_MODEM_CONFIG3,0x04);
         }
         writeRegister(REG_MODEM_CONFIG,0x72);
+		//
+		// 0x72= 0111 001 0
+		// 0111 = BW125 kHz
+		// 001 = codingrate 4/5
+		// 0 = Explicit mode('automatic', no filtering on packet header)
         writeRegister(REG_MODEM_CONFIG2,(sf<<4) | 0x04);
     }
 
