@@ -85,6 +85,7 @@ static char email[40]       = "";                        /* used for contact ema
 static char description[64] = "";                        /* used for free form description */
 
 // define servers
+#define GATEWAY_CONNECTED_TO_TTN 0
 // TODO: use host names and dns
 #define SERVER1 "54.72.145.119"    // The Things Network: croft.thethings.girovito.nl
 //#define SERVER2 "192.168.1.10"      // local
@@ -163,6 +164,8 @@ static char description[64] = "";                        /* used for free form d
 #define TX_BUFF_SIZE  2048
 #define STATUS_SIZE	  1024
 
+// ESSENTIALS
+
 void die(const char *s)
 {
     perror(s);
@@ -203,6 +206,9 @@ void writeRegister(byte addr, byte value)
 
     unselectreceiver();
 }
+
+// END ESSENTIALS
+// LoRa hardware functions
 
 boolean receivePkt(char *payload)
 {
@@ -326,8 +332,15 @@ void SetupLoRa()
     // Set Continous Receive Mode
     writeRegister(REG_LNA, LNA_MAX_GAIN);  // max lna gain
     writeRegister(REG_OPMODE, SX72_MODE_RX_CONTINUOS);
+	
+	
+    printf("Started listening at SF%i on %.6lf Mhz.\n", sf,(double)freq/1000000);
+    printf("------------------\n");
 
 }
+// END LoRa hardware functions
+
+#IF GATEWAY_CONNECTED_TO_TTN
 
 void sendudp(char *msg, int length) {
 
@@ -391,11 +404,14 @@ void sendstat() {
     sendudp(status_report, stat_index);
 
 }
+#ENDIF // END GATEWAY_CONNECTED_TO_TTN
+
+// Convenience functions
 
 void receivepacket() {
 
     long int SNR;
-    int rssicorr;
+    int rssicorr, packetRSSI, RSSI;
 
     if(digitalRead(dio0) == 1)
     {
@@ -419,11 +435,15 @@ void receivepacket() {
                 rssicorr = 157;
             }
 
-            printf("Packet RSSI: %d, ",readRegister(0x1A)-rssicorr);
-            printf("RSSI: %d, ",readRegister(0x1B)-rssicorr);
+            printf("Packet RSSI: %d, ", packetRSSI = (readRegister(0x1A)-rssicorr));
+            printf("RSSI: %d, ", RSSI = (readRegister(0x1B)-rssicorr));
             printf("SNR: %li, ",SNR);
             printf("Length: %i",(int)receivedbytes);
             printf("\n");
+			
+			//
+			// Store to csv if message was from testdevice
+			//
 
             int j;
             j = bin_to_b64((uint8_t *)message, receivedbytes, (char *)(b64), 341);
@@ -431,6 +451,9 @@ void receivepacket() {
 
             char buff_up[TX_BUFF_SIZE]; /* buffer to compose the upstream packet */
             int buff_index=0;
+			
+			
+#IF GATEWAY_CONNECTED_TO_TTN
 
             /* gateway <-> MAC protocol variables */
             //static uint32_t net_mac_h; /* Most Significant Nibble, network order */
@@ -462,11 +485,13 @@ void receivepacket() {
             buff_up[2] = token_l;
             buff_index = 12; /* 12-byte header */
 
+#ENDIF // END GATEWAY_CONNECTED_TO_TTN
             // TODO: tmst can jump is time is (re)set, not good.
             struct timeval now;
             gettimeofday(&now, NULL);
             uint32_t tmst = (uint32_t)(now.tv_sec*1000000 + now.tv_usec);
 
+#IF GATEWAY_CONNECTED_TO_TTN
             /* start of JSON structure */
             memcpy((void *)(buff_up + buff_index), (void *)"{\"rxpk\":[", 9);
             buff_index += 9;
@@ -536,9 +561,12 @@ void receivepacket() {
             buff_up[buff_index] = 0; /* add string terminator, for safety */
 
             printf("rxpk update: %s\n", (char *)(buff_up + 12)); /* DEBUG: display JSON payload */
+			
 
             //send the messages
             sendudp(buff_up, buff_index);
+			
+#ENDIF // END GATEWAY_CONNECTED_TO_TTN
 
             fflush(stdout);
 
@@ -547,10 +575,25 @@ void receivepacket() {
     } // dio0=1
 }
 
+// END Convenience functions
+
 int main () {
 
     struct timeval nowtime;
     uint32_t lasttime;
+	
+	while (1) {
+
+		if (nowtime.tv_sec > 1508515200) break; 
+		
+		if(nowtime.tv_sec != 0) { // If not the first run
+			printf("Waiting for System time synchronization.\n");
+			delay(1000);
+		}
+		
+		gettimeofday(&nowtime, NULL);
+		
+	}  // Bigger than 20-10-2017 18:00:00; Human time (GMT): Friday 20 October 2017 16:00:00
 
     wiringPiSetup () ;
     pinMode(ssPin, OUTPUT);
@@ -562,6 +605,8 @@ int main () {
     //cout << "Init result: " << fd << endl;
 
     SetupLoRa();
+	
+#if GATEWAY_CONNECTED_TO_TTN
 
     if ( (s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
@@ -583,9 +628,8 @@ int main () {
            (unsigned char)ifr.ifr_hwaddr.sa_data[3],
            (unsigned char)ifr.ifr_hwaddr.sa_data[4],
            (unsigned char)ifr.ifr_hwaddr.sa_data[5]);
-
-    printf("Listening at SF%i on %.6lf Mhz.\n", sf,(double)freq/1000000);
-    printf("------------------\n");
+		   
+#ENDIF
 
     while(1) {
 
