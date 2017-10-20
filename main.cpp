@@ -34,6 +34,8 @@ typedef bool boolean;
 typedef unsigned char byte;
 
 static const int CHANNEL = 0;
+FILE *csvFile;
+uint32_t packetCount = 0;
 
 byte currentMode = 0x81;
 
@@ -55,7 +57,7 @@ uint32_t cp_nb_rx_nocrc;
 uint32_t cp_up_pkt_fwd;
 
 enum sf_t { SF7=7, SF8, SF9, SF10, SF11, SF12 };
-enum LoRaChan {LoRaChan_0=868100000, LoRaChan_0=868300000, LoRaChan_0=868500000, LoRaChan_Test_0=869462500, LoRaChan_Test_1=869587500, LoRaChan_Test_2=869525000 };
+enum LoRaChan {LoRaChan_0=868100000, LoRaChan_1=868300000, LoRaChan_2=868500000, LoRaChan_Test_0=869462500, LoRaChan_Test_1=869587500, LoRaChan_Test_0_BW250=869525000 };
 
 /*******************************************************************************
  *
@@ -244,8 +246,9 @@ boolean receivePkt(char *payload)
     return true;
 }
 
-void SetupLoRa_Freq(uint32_t frequency){
+void SetupLoRa_(uint32_t frequency, sf_t spread){
 		freq = frequency;
+		sf = spread;
 		SetupLoRa();
 }
 
@@ -332,6 +335,24 @@ void SetupLoRa()
     // Set Continous Receive Mode
     writeRegister(REG_LNA, LNA_MAX_GAIN);  // max lna gain
     writeRegister(REG_OPMODE, SX72_MODE_RX_CONTINUOS);
+	
+	// initialize FILE
+	{
+		char buf[20], filename[20];
+		if(csvFile != NULL) fclose(csvFile);
+		strftime(buf, sizeof(buf), "%Y%m%d-%H%M%S", &nowtime);
+		sprintf(filename, "~/%s.csv", buf);
+		printf("Opening file '%s'\n", filename);
+		csvFile = fopen(filename, "w");
+		fprintf(csvFile, 
+		"Packetno."
+		",SignalNoiseRatio"
+		",RSSI"
+		",RSSI2"
+		",Length"
+		"\r\n"
+		)
+	}
 	
 	
     printf("Started listening at SF%i on %.6lf Mhz.\n", sf,(double)freq/1000000);
@@ -448,12 +469,10 @@ void receivepacket() {
             int j;
             j = bin_to_b64((uint8_t *)message, receivedbytes, (char *)(b64), 341);
             //fwrite(b64, sizeof(char), j, stdout);
-
-            char buff_up[TX_BUFF_SIZE]; /* buffer to compose the upstream packet */
-            int buff_index=0;
-			
 			
 #IF GATEWAY_CONNECTED_TO_TTN
+            char buff_up[TX_BUFF_SIZE]; /* buffer to compose the upstream packet */
+            int buff_index=0;
 
             /* gateway <-> MAC protocol variables */
             //static uint32_t net_mac_h; /* Most Significant Nibble, network order */
@@ -588,7 +607,7 @@ int main () {
 		
 		if(nowtime.tv_sec != 0) { // If not the first run
 			printf("Waiting for System time synchronization.\n");
-			delay(1000);
+			sleep(3);
 		}
 		
 		gettimeofday(&nowtime, NULL);
@@ -604,9 +623,9 @@ int main () {
     wiringPiSPISetup(CHANNEL, 500000);
     //cout << "Init result: " << fd << endl;
 
-    SetupLoRa();
-	
-#if GATEWAY_CONNECTED_TO_TTN
+    SetupLoRa_(LoRaChan_Test_0, SF12);
+
+#IF GATEWAY_CONNECTED_TO_TTN
 
     if ( (s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
@@ -635,6 +654,7 @@ int main () {
 
         receivepacket();
 
+#IF GATEWAY_CONNECTED_TO_TTN
         gettimeofday(&nowtime, NULL);
         uint32_t nowseconds = (uint32_t)(nowtime.tv_sec);
         if (nowseconds - lasttime >= 30) {
@@ -644,6 +664,7 @@ int main () {
             cp_nb_rx_ok = 0;
             cp_up_pkt_fwd = 0;
         }
+#ENDIF
         delay(1);
     }
 
