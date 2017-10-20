@@ -55,6 +55,7 @@ uint32_t cp_nb_rx_nocrc;
 uint32_t cp_up_pkt_fwd;
 
 enum sf_t { SF7=7, SF8, SF9, SF10, SF11, SF12 };
+enum LoRaChan {LoRaChan_0=868100000, LoRaChan_0=868300000, LoRaChan_0=868500000, LoRaChan_Test_0=869462500, LoRaChan_Test_1=869587500, LoRaChan_Test_2=869525000 };
 
 /*******************************************************************************
  *
@@ -203,7 +204,6 @@ void writeRegister(byte addr, byte value)
     unselectreceiver();
 }
 
-
 boolean receivePkt(char *payload)
 {
 
@@ -242,9 +242,9 @@ void SetupLoRa()
 {
     
     digitalWrite(RST, HIGH);
-    delay(100);
-    digitalWrite(RST, LOW);
-    delay(100);
+    delay(1);
+    digitalWrite(RST, LOW); 
+    delay(2);
 
     byte version = readRegister(REG_VERSION);
 
@@ -253,11 +253,12 @@ void SetupLoRa()
         printf("SX1272 detected, starting.\n");
         sx1272 = true;
     } else {
-        // sx1276?
-        digitalWrite(RST, LOW);
-        delay(100);
+		// Datasheet said low 100usec, high 5 ms
+		// Currently already low, so skip setting and waiting
+        //digitalWrite(RST, LOW);
+        //delay(2);
         digitalWrite(RST, HIGH);
-        delay(100);
+        delay(10);
         version = readRegister(REG_VERSION);
         if (version == 0x12) {
             // sx1276
