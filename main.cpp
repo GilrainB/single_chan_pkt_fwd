@@ -363,7 +363,7 @@ void SetupLoRa()
 		",TimeEpoch"
 		",SignalNoiseRatio"
 		",RSSI"
-		",RSSI2"
+		",RSSI Packet"
 		",Length"
 		"\r\n"
 		)
@@ -444,6 +444,14 @@ void sendstat() {
 
 // Convenience functions
 
+void readMessage_LoRaWAN(char* payload){
+	// Using data from LoRaWAN specification, 4 MAC Message Formats, page 15.
+	/*
+	Size (bytes)|	1   	1..M      	4
+	PHYPayload  |	MHDR	MACPayload 	MIC
+	*/
+}
+
 void receivepacket() {
 
     long int SNR;
@@ -483,12 +491,29 @@ void receivepacket() {
 			//
 			// Store to csv if message was from testdevice
 			//
-
+			/*
+			fprintf(csvFile, 
+		"Packetno."
+		",TimeEpoch"
+		",SignalNoiseRatio"
+		",RSSI"
+		",RSSI Packet"
+		",Length"
+		"\r\n"
+		)
+			*/
+			fprintf(csvFile, 
+			"%d,%d,%d,%d,%d,%d\r\n", 
+			cp_nb_rx_rcv -1,now.tv_sec,
+			SNR, RSSI, packetRSSI,
+			receivedbytes
+			);
+			
+			
+#IF GATEWAY_CONNECTED_TO_TTN
             int j;
             j = bin_to_b64((uint8_t *)message, receivedbytes, (char *)(b64), 341);
             //fwrite(b64, sizeof(char), j, stdout);
-			
-#IF GATEWAY_CONNECTED_TO_TTN
             char buff_up[TX_BUFF_SIZE]; /* buffer to compose the upstream packet */
             int buff_index=0;
 
@@ -600,6 +625,8 @@ void receivepacket() {
             sendudp(buff_up, buff_index);
 			
 #ENDIF // END GATEWAY_CONNECTED_TO_TTN
+
+			readMessage_LoRaWAN(message);
 
             fflush(csvFile);
             fflush(stdout);
