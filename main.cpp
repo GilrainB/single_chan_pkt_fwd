@@ -34,8 +34,7 @@ typedef bool boolean;
 typedef unsigned char byte;
 
 static const int CHANNEL = 0;
-FILE *csvFile;
-uint32_t packetCount = 0;
+FILE *csvFile = NULL;
 
 byte currentMode = 0x81;
 
@@ -50,13 +49,21 @@ struct sockaddr_in si_other;
 int s, slen=sizeof(si_other);
 struct ifreq ifr;
 
+// Collect metadata on received packets; Amount of received packets...
+// Total
+// With OK CRC
+// With bad CRC
+// Without CRC
+// Amount of packets forwarded(?)
 uint32_t cp_nb_rx_rcv;
 uint32_t cp_nb_rx_ok;
 uint32_t cp_nb_rx_bad;
 uint32_t cp_nb_rx_nocrc;
 uint32_t cp_up_pkt_fwd;
 
+// Receive properties
 enum sf_t { SF7=7, SF8, SF9, SF10, SF11, SF12 };
+// Normal BW is BW125
 enum LoRaChan {LoRaChan_0=868100000, LoRaChan_1=868300000, LoRaChan_2=868500000, LoRaChan_Test_0=869462500, LoRaChan_Test_1=869587500, LoRaChan_Test_0_BW250=869525000 };
 
 /*******************************************************************************
@@ -174,27 +181,28 @@ void die(const char *s)
     exit(1);
 }
 
-void selectreceiver()
-{
-    digitalWrite(ssPin, LOW);
-}
+#DEFINE selectreceiver() digitalWrite(ssPin, LOW)
 
-void unselectreceiver()
-{
-    digitalWrite(ssPin, HIGH);
-}
+#DEFINE unselectreceiver() digitalWrite(ssPin, HIGH)
 
 byte readRegister(byte addr)
 {
-    unsigned char spibuf[2];
+	//unsigned char spibuf[2];
+    union {
+		unsigned char uch[2];
+		uint16_t u16;
+	} spibuf;
 
     selectreceiver();
-    spibuf[0] = addr & 0x7F;
-    spibuf[1] = 0x00;
+	
+    // spibuf[0] = addr & 0x7F;
+    // spibuf[1] = 0x00;
+	spibuf.u16 = addr & 0x007F;
+	
     wiringPiSPIDataRW(CHANNEL, spibuf, 2);
     unselectreceiver();
 
-    return spibuf[1];
+    return spibuf.uch[1];
 }
 
 void writeRegister(byte addr, byte value)
@@ -225,8 +233,9 @@ boolean receivePkt(char *payload)
     //  payload crc: 0x20
     if((irqflags & 0x20) == 0x20)
     {
-        printf("CRC error\n");
         writeRegister(REG_IRQ_FLAGS, 0x20);
+		cp_nb_rx_bad++;
+        printf("CRC error\n");
         return false;
     } else {
 
@@ -338,14 +347,20 @@ void SetupLoRa()
 	
 	// initialize FILE
 	{
-		char buf[20], filename[20];
+		gettimeofday(&nowtime, NULL);
+				
+		char * s_filedirectory = "~/LoRaWAN-TESTGateway";
+		char s_buf[16], s_filename[sizeof(filedirectory) + sizeof(buf)-1];
 		if(csvFile != NULL) fclose(csvFile);
 		strftime(buf, sizeof(buf), "%Y%m%d-%H%M%S", &nowtime);
-		sprintf(filename, "~/%s.csv", buf);
+		sprintf(filename, "%s/%s.csv", filedirectory, buf);
+		
 		printf("Opening file '%s'\n", filename);
+		mkdir(filedirectory, S_IRWXU );
 		csvFile = fopen(filename, "w");
 		fprintf(csvFile, 
 		"Packetno."
+		",TimeEpoch"
 		",SignalNoiseRatio"
 		",RSSI"
 		",RSSI2"
@@ -433,10 +448,13 @@ void receivepacket() {
 
     long int SNR;
     int rssicorr, packetRSSI, RSSI;
+	struct timeval now;
 
     if(digitalRead(dio0) == 1)
-    {
         if(receivePkt(message)) {
+			
+			gettimeofday(&now, NULL);
+			
             byte value = readRegister(REG_PKT_SNR_VALUE);
             if( value & 0x80 ) // The SNR sign bit is 1
             {
@@ -504,13 +522,9 @@ void receivepacket() {
             buff_up[2] = token_l;
             buff_index = 12; /* 12-byte header */
 
-#ENDIF // END GATEWAY_CONNECTED_TO_TTN
             // TODO: tmst can jump is time is (re)set, not good.
-            struct timeval now;
-            gettimeofday(&now, NULL);
             uint32_t tmst = (uint32_t)(now.tv_sec*1000000 + now.tv_usec);
 
-#IF GATEWAY_CONNECTED_TO_TTN
             /* start of JSON structure */
             memcpy((void *)(buff_up + buff_index), (void *)"{\"rxpk\":[", 9);
             buff_index += 9;
@@ -587,11 +601,11 @@ void receivepacket() {
 			
 #ENDIF // END GATEWAY_CONNECTED_TO_TTN
 
+            fflush(csvFile);
             fflush(stdout);
 
         } // received a message
-
-    } // dio0=1
+		
 }
 
 // END Convenience functions
@@ -613,6 +627,7 @@ int main () {
 		gettimeofday(&nowtime, NULL);
 		
 	}  // Bigger than 20-10-2017 18:00:00; Human time (GMT): Friday 20 October 2017 16:00:00
+	printf("Setting up LoRa TESTGateway.\n");
 
     wiringPiSetup () ;
     pinMode(ssPin, OUTPUT);
