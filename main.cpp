@@ -20,6 +20,7 @@
 #include <sys/time.h>
 #include <cstring>
 #include <sys/stat.h>
+#include <errno.h>
 
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -34,6 +35,7 @@ using namespace std;
 typedef bool boolean;
 typedef unsigned char byte;
 
+extern int errno;
 static const int CHANNEL = 0;
 FILE *csvFile = NULL;
 
@@ -299,6 +301,7 @@ void SetupLoRa()
             exit(1);
         }
     }
+	puts("\n");
 
     writeRegister(REG_OPMODE, SX72_MODE_SLEEP);
 
@@ -354,8 +357,9 @@ void SetupLoRa()
 	// initialize FILE
 	{
 		struct tm *currtime;
-		const char * s_fileDirectory = "~/LoRaWAN-TESTGateway";
-		char s_buf[16], filename[sizeof(s_fileDirectory) + sizeof(s_buf)-1];
+		const char * s_fileDirectory = "/home/pi/LoRaWAN-TESTGateway";
+		char s_buf[20], // 4+2+2+1+2+2+2(YYYYmmdd-HHMMSS) = 15 + '\0' = 16
+			filename[sizeof(s_fileDirectory) + sizeof(s_buf) + 5];
 		
 		if(csvFile != NULL) fclose(csvFile);
 		
@@ -366,13 +370,30 @@ void SetupLoRa()
 			exit(EXIT_FAILURE);
 		}
 		strftime(s_buf, sizeof(s_buf), "%Y%m%d-%H%M%S", currtime);
+		// s_buf is filled with the current date and time(Japanese format with '-' in between)
 		
 		sprintf(filename, "%s/%s.csv", s_fileDirectory, s_buf);
+		//strcpy(filename, s_fileDirectory);
+		//strcat(filename, s_buf);
+		//strcat(filename, ".csv");
+		//printf("Filename='%s'\ns_buf='%s'\n", filename, s_buf);
 		
-		printf("Opening file '%s'\n", filename);
-		mkdir(s_fileDirectory, 0664 /*RW user group, read others*/ ); // usually directory exists
+		if(mkdir(s_fileDirectory, 0664 /*RW user group, read others*/ ) == 0 )
+			printf("Created directory '%s'\n", s_fileDirectory); // usually directory exists
+		else
+		switch (errno){
+			case EEXIST:
+				printf("Directory '%s' exists.\n", s_fileDirectory);
+				break;
+			default:
+				fprintf(stderr, "Can't access '%s' directory.", s_fileDirectory);
+				exit(1);
+		}
+		
+		printf("Opening file '%s'", filename);
 		csvFile = fopen(filename, "w");
-		fprintf(csvFile, 
+		puts("...");
+		fprintf(csvFile,
 		"Packetno."
 		",TimeEpoch"
 		",SignalNoiseRatio"
@@ -381,12 +402,12 @@ void SetupLoRa()
 		",Length"
 		"\r\n"
 		);
+		puts("\tSuccess!\n");
 	}
 	
 	
     printf("Started listening at SF%i on %.6lf Mhz.\n", sf,(double)freq/1000000);
     printf("------------------\n");
-
 }
 // END LoRa hardware functions
 
@@ -681,7 +702,7 @@ int main () {
     wiringPiSPISetup(CHANNEL, 500000);
     //cout << "Init result: " << fd << endl;
 
-    SetupLoRa_(LoRaChan_Test_0, SF12);
+    SetupLoRa_(LoRaChan_0, SF12);
 
 #if GATEWAY_CONNECTED_TO_TTN
 
