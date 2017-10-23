@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <sys/time.h>
 #include <cstring>
+#include <sys/stat.h>
 
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -181,9 +182,9 @@ void die(const char *s)
     exit(1);
 }
 
-#DEFINE selectreceiver() digitalWrite(ssPin, LOW)
+#define selectreceiver() digitalWrite(ssPin, LOW)
 
-#DEFINE unselectreceiver() digitalWrite(ssPin, HIGH)
+#define unselectreceiver() digitalWrite(ssPin, HIGH)
 
 byte readRegister(byte addr)
 {
@@ -347,16 +348,17 @@ void SetupLoRa()
 	
 	// initialize FILE
 	{
+		struct timeval nowtime;
 		gettimeofday(&nowtime, NULL);
 				
-		char * s_filedirectory = "~/LoRaWAN-TESTGateway";
-		char s_buf[16], s_filename[sizeof(filedirectory) + sizeof(buf)-1];
+		const char * s_fileDirectory = "~/LoRaWAN-TESTGateway";
+		char s_buf[16], filename[sizeof(s_fileDirectory) + sizeof(s_buf)-1];
 		if(csvFile != NULL) fclose(csvFile);
-		strftime(buf, sizeof(buf), "%Y%m%d-%H%M%S", &nowtime);
-		sprintf(filename, "%s/%s.csv", filedirectory, buf);
+		strftime(s_buf, sizeof(s_buf), "%Y%m%d-%H%M%S", &nowtime);
+		sprintf(filename, "%s/%s.csv", s_fileDirectory, s_buf);
 		
 		printf("Opening file '%s'\n", filename);
-		mkdir(filedirectory, S_IRWXU );
+		mkdir(s_fileDirectory, 0664 /*RW user group, read others*/ ); // usually directory exists
 		csvFile = fopen(filename, "w");
 		fprintf(csvFile, 
 		"Packetno."
@@ -366,7 +368,7 @@ void SetupLoRa()
 		",RSSI Packet"
 		",Length"
 		"\r\n"
-		)
+		);
 	}
 	
 	
@@ -376,7 +378,7 @@ void SetupLoRa()
 }
 // END LoRa hardware functions
 
-#IF GATEWAY_CONNECTED_TO_TTN
+#if GATEWAY_CONNECTED_TO_TTN
 
 void sendudp(char *msg, int length) {
 
@@ -440,7 +442,7 @@ void sendstat() {
     sendudp(status_report, stat_index);
 
 }
-#ENDIF // END GATEWAY_CONNECTED_TO_TTN
+#endif // END GATEWAY_CONNECTED_TO_TTN
 
 // Convenience functions
 
@@ -503,14 +505,14 @@ void receivepacket() {
 		)
 			*/
 			fprintf(csvFile, 
-			"%d,%d,%d,%d,%d,%d\r\n", 
+			"%u,%li,%li,%d,%d,%d\r\n", 
 			cp_nb_rx_rcv -1,now.tv_sec,
 			SNR, RSSI, packetRSSI,
-			receivedbytes
+			(int)receivedbytes
 			);
 			
 			
-#IF GATEWAY_CONNECTED_TO_TTN
+#if GATEWAY_CONNECTED_TO_TTN
             int j;
             j = bin_to_b64((uint8_t *)message, receivedbytes, (char *)(b64), 341);
             //fwrite(b64, sizeof(char), j, stdout);
@@ -624,7 +626,7 @@ void receivepacket() {
             //send the messages
             sendudp(buff_up, buff_index);
 			
-#ENDIF // END GATEWAY_CONNECTED_TO_TTN
+#endif // END GATEWAY_CONNECTED_TO_TTN
 
 			readMessage_LoRaWAN(message);
 
@@ -648,7 +650,7 @@ int main () {
 		
 		if(nowtime.tv_sec != 0) { // If not the first run
 			printf("Waiting for System time synchronization.\n");
-			sleep(3);
+			delay(3000);
 		}
 		
 		gettimeofday(&nowtime, NULL);
@@ -667,7 +669,7 @@ int main () {
 
     SetupLoRa_(LoRaChan_Test_0, SF12);
 
-#IF GATEWAY_CONNECTED_TO_TTN
+#if GATEWAY_CONNECTED_TO_TTN
 
     if ( (s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
     {
@@ -690,13 +692,13 @@ int main () {
            (unsigned char)ifr.ifr_hwaddr.sa_data[4],
            (unsigned char)ifr.ifr_hwaddr.sa_data[5]);
 		   
-#ENDIF
+#endif
 
     while(1) {
 
         receivepacket();
 
-#IF GATEWAY_CONNECTED_TO_TTN
+#if GATEWAY_CONNECTED_TO_TTN
         gettimeofday(&nowtime, NULL);
         uint32_t nowseconds = (uint32_t)(nowtime.tv_sec);
         if (nowseconds - lasttime >= 30) {
@@ -706,7 +708,7 @@ int main () {
             cp_nb_rx_ok = 0;
             cp_up_pkt_fwd = 0;
         }
-#ENDIF
+#endif
         delay(1);
     }
 
