@@ -480,6 +480,9 @@ void sendstat() {
 #endif // END GATEWAY_CONNECTED_TO_TTN
 
 // Convenience functions
+void readLoRaMacPayload(char* macpayload){
+	
+}
 
 void readMessage_LoRaWAN(char* payload){
 	// Using data from LoRaWAN specification, 4 MAC Message Formats, page 15.
@@ -556,7 +559,8 @@ void readMessage_LoRaWAN(char* payload){
 	}
 	
 	// Check the MACPayload!
-	
+	if(hasLoRaWanData) readLoRaMacPayload(payload_MACPayload);
+	else fprintf(csvFile, ",,,"); // Needs to contain a fixed amount of commas
 }
 
 void receivepacket() {
