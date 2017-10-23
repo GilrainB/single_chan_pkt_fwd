@@ -84,6 +84,14 @@ sf_t sf = SF7;
 // Set center frequency
 uint32_t  freq = 868100000; // in Mhz! (868.1)
 
+// define servers
+#define GATEWAY_CONNECTED_TO_TTN 0
+#if GATEWAY_CONNECTED_TO_TTN
+// TODO: use host names and dns
+#define SERVER1 "54.72.145.119"    // The Things Network: croft.thethings.girovito.nl
+//#define SERVER2 "192.168.1.10"      // local
+#define PORT 1700                   // The port on which to send data
+
 // Set location
 float lat=0.0;
 float lon=0.0;
@@ -94,12 +102,7 @@ static char platform[24]    = "Single Channel Gateway";  /* platform definition 
 static char email[40]       = "";                        /* used for contact email */
 static char description[64] = "";                        /* used for free form description */
 
-// define servers
-#define GATEWAY_CONNECTED_TO_TTN 0
-// TODO: use host names and dns
-#define SERVER1 "54.72.145.119"    // The Things Network: croft.thethings.girovito.nl
-//#define SERVER2 "192.168.1.10"      // local
-#define PORT 1700                   // The port on which to send data
+#endif
 
 // #############################################
 // #############################################
@@ -200,7 +203,7 @@ byte readRegister(byte addr)
     // spibuf[1] = 0x00;
 	spibuf.u16 = addr & 0x007F;
 	
-    wiringPiSPIDataRW(CHANNEL, spibuf, 2);
+    wiringPiSPIDataRW(CHANNEL, spibuf.uch, 2);
     unselectreceiver();
 
     return spibuf.uch[1];
@@ -255,6 +258,8 @@ boolean receivePkt(char *payload)
     }
     return true;
 }
+
+void SetupLoRa(); // Prototype
 
 void SetupLoRa_(uint32_t frequency, sf_t spread){
 		freq = frequency;
@@ -348,13 +353,20 @@ void SetupLoRa()
 	
 	// initialize FILE
 	{
-		struct timeval nowtime;
-		gettimeofday(&nowtime, NULL);
-				
+		struct tm *currtime;
 		const char * s_fileDirectory = "~/LoRaWAN-TESTGateway";
 		char s_buf[16], filename[sizeof(s_fileDirectory) + sizeof(s_buf)-1];
+		
 		if(csvFile != NULL) fclose(csvFile);
-		strftime(s_buf, sizeof(s_buf), "%Y%m%d-%H%M%S", &nowtime);
+		
+		time_t t = time(NULL);
+		currtime = localtime(&t);
+		if (currtime == NULL) {
+			perror("couldn't get localtime");
+			exit(EXIT_FAILURE);
+		}
+		strftime(s_buf, sizeof(s_buf), "%Y%m%d-%H%M%S", currtime);
+		
 		sprintf(filename, "%s/%s.csv", s_fileDirectory, s_buf);
 		
 		printf("Opening file '%s'\n", filename);
@@ -642,7 +654,9 @@ void receivepacket() {
 int main () {
 
     struct timeval nowtime;
+#if GATEWAY_CONNECTED_TO_TTN
     uint32_t lasttime;
+#endif
 	
 	while (1) {
 
