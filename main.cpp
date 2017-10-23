@@ -392,7 +392,7 @@ void SetupLoRa()
 		
 		printf("Opening file '%s'", filename);
 		csvFile = fopen(filename, "w");
-		puts("...");
+		printf("...");
 		fprintf(csvFile,
 		"Packetno."
 		",TimeEpoch"
@@ -400,9 +400,11 @@ void SetupLoRa()
 		",RSSI"
 		",RSSI Packet"
 		",Length"
+		",MType" // see MType of the MHDR
+		",IsLoRaWAN-Data"
 		"\r\n"
 		);
-		puts("\tSuccess!\n");
+		printf("\tSuccess!\n");
 	}
 	
 	
@@ -481,10 +483,80 @@ void sendstat() {
 
 void readMessage_LoRaWAN(char* payload){
 	// Using data from LoRaWAN specification, 4 MAC Message Formats, page 15.
+	
+	bool hasLoRaWanData = false;
+	char * nextCsvStr = NULL;
+	char payload_MHDR = payload[0];
+	char * payload_MACPayload = payload + 1;
+	uint32_t payload_MIC = *((uint32_t*) (payload + receivedbytes - 4));
+	
 	/*
 	Size (bytes)|	1   	1..M      	4
 	PHYPayload  |	MHDR	MACPayload 	MIC
 	*/
+	/* MHDR: 
+	Bit# 	7..5	4..2	1..0
+	MHDR	MType	RFU 	Major
+	*/
+	/* MType = 
+		000 Join Request
+		001 Join Accept
+		010 Unconfirmed Data Up
+		011 Unconfirmed Data Down
+		100 Confirmed Data Up
+		101 Confirmed Data Down
+		110 RFU
+		111 Proprietary
+	*/
+	switch(payload_MHDR>>5) {
+		case 0b000:
+			nextCsvStr = "Join Request";
+			break;
+		case 0b001:
+			nextCsvStr = "Join Accept";
+			break;
+		case 0b010:
+			nextCsvStr = "Unconfirmed Data Up";
+			hasLoRaWanData = true;
+			break;
+		case 0b011:
+			nextCsvStr = "Unconfirmed Data Down";
+			break;
+		case 0b100:
+			nextCsvStr = "Confirmed Data Up";
+			hasLoRaWanData = true; // This type of message doesn't need to be looked into as it's not relevant for the test
+			break;
+		case 0b101:
+			nextCsvStr = "Confirmed Data Down";
+			break;
+		case 0b110:
+			nextCsvStr = "RFU";
+			break;
+		case 0b111:
+			nextCsvStr = "Proprietary";
+			break;
+	}
+	fprintf(csvFile, ",\"%s\"", nextCsvStr); // Message Type(MType)
+	printf(", %s", nextCsvStr);
+	
+	// Mayor bitfield: 00 LoRaWAN R1, else RFU
+	if(hasLoRaWanData != false && (payload_MHDR & 0b11) == 0b00) {
+		// Is actually LoRaWAN R1 Data
+		hasLoRaWanData = true;
+	} else {
+		hasLoRaWanData = false;
+	}
+	
+	if(hasLoRaWanData){
+		fprintf(csvFile, "1");
+		printf(", Has Lorawan data");
+	} else {
+		fprintf(csvFile, "0");
+		printf(", NO Lorawan data");
+	}
+	
+	// Check the MACPayload!
+	
 }
 
 void receivepacket() {
@@ -521,7 +593,6 @@ void receivepacket() {
             printf("RSSI: %d, ", RSSI = (readRegister(0x1B)-rssicorr));
             printf("SNR: %li, ",SNR);
             printf("Length: %i",(int)receivedbytes);
-            printf("\n");
 			
 			//
 			// Store to csv if message was from testdevice
@@ -538,7 +609,7 @@ void receivepacket() {
 		)
 			*/
 			fprintf(csvFile, 
-			"%u,%li,%li,%d,%d,%d\r\n", 
+			"%u,%li,%li,%d,%d,%d", 
 			cp_nb_rx_rcv -1,now.tv_sec,
 			SNR, RSSI, packetRSSI,
 			(int)receivedbytes
@@ -663,9 +734,6 @@ void receivepacket() {
 
 			readMessage_LoRaWAN(message);
 
-            fflush(csvFile);
-            fflush(stdout);
-
         } // received a message
 		
 }
@@ -744,6 +812,12 @@ int main () {
             cp_up_pkt_fwd = 0;
         }
 #endif
+		fprintf(csvFile, "\r\n");
+		printf("\n");
+		
+		fflush(csvFile);
+		fflush(stdout);
+		
         delay(1);
     }
 
