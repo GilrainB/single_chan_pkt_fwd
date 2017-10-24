@@ -47,7 +47,7 @@ int b64_cnt = 0;
 
 bool sx1272 = true;
 
-byte receivedbytes;
+uint8_t receivedbytes;
 
 struct sockaddr_in si_other;
 int s, slen=sizeof(si_other);
@@ -519,10 +519,10 @@ void csvWriteHex(uint32_t data, const char * description){
 /// This function collects information on the LoRaWAN payload, if present.
 /// Data: Device address, frame count, port(0x01-0xDF)
 void readLoRaMacPayload(char* macpayload){
-	FHDR_t* header = macpayload;
-	uint8_t offset = header->FCtrl->FOptsLen;
-	uint8_t* port = ((char*)(header + 1))+ offset; // if port is present, it follows the FOpts
-	uint8_t* EncryptedData = port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
+	FHDR_t  * header 		= (FHDR_t * ) macpayload;
+	uint8_t   offset 		= header->FCtrl.FOptsLen;
+	uint8_t * port   		= ((uint8_t *)(macpayload + 1)) + offset; // if port is present, it follows the FOpts
+	uint8_t * EncryptedData	= port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
 	
 	printf(" %d Offset", (int)offset);
 	
@@ -616,7 +616,7 @@ void readMessage_LoRaWAN(char* payload){
 #if PRINT_DATA_ON_CLI
 		printf("\EncryptedData in base64:\t'");
 		fwrite(b64, sizeof(char), b64_cnt, stdout);
-		printf("'\n");
+		printf("' MIC: 0x%X\n", payload_MIC);
 #endif
 	}
 }
