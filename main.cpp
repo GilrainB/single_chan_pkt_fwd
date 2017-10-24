@@ -65,10 +65,30 @@ uint32_t cp_nb_rx_bad;
 uint32_t cp_nb_rx_nocrc;
 uint32_t cp_up_pkt_fwd;
 
+//////////////////////////////////
+/////// LoRaWAN data types ///////
+//////////////////////////////////
 // Receive properties
 enum sf_t { SF7=7, SF8, SF9, SF10, SF11, SF12 };
 // Normal BW is BW125
 enum LoRaChan {LoRaChan_0=868100000, LoRaChan_1=868300000, LoRaChan_2=868500000, LoRaChan_Test_0=869462500, LoRaChan_Test_1=869587500, LoRaChan_Test_0_BW250=869525000 };
+
+// Bitfields are assigned from least to most significant; reversed from the 'real' situation.
+typedef struct { 		// Frame Control, uplink structure
+	uint8_t FOptsLen:4;	// Length of the frame options. Can be 0 to 15 bytes. This amount is the offset for the actual data following  FCnt in FHDR_t.
+	bool FPending:1;	// Frame pending bit, only used in downlink communication(so ignore for uplink info from Nodes).
+	// Indicating that the gateway has more data pending to be sent it's therefore asking the end-device to open another receive window ASAP by sending another uplink message.
+	bool ACK:1;			// When receiving a confirmed data message, the receiver shall respond with a data frame that has this acknowledgment bit (ACK) set.
+	bool ADRACKReq:1; 	// Request for acknowledgment (on this message)
+	bool ADR:1; 		// Adaptive Data Rate control
+} FCtrl_t;
+
+typedef struct {
+	uint32_t DevAddr;	// Device address
+	FCtrl_t FCtrl;		// Frame Control
+	uint16_t FCnt;		// Frame counter
+	// Not included: FOpts; these could not have been included in the frame
+} FHDR_t;
 
 /*******************************************************************************
  *
@@ -484,7 +504,14 @@ void sendstat() {
 #endif // END GATEWAY_CONNECTED_TO_TTN
 
 // Convenience functions
+
+/// This function collects information on the LoRaWAN payload, if present.
+/// Data: Device address, frame count, port(0x01-0xDF)
 void readLoRaMacPayload(char* macpayload){
+	FHDR_t* header = macpayload;
+	uint8_t offset = header->FCtrl->FOptsLen;
+	uint8_t* port = ((char*)(header + 1))+ offset; // if port is present, it follows the FOpts
+	uint8_t* EncryptedData = port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
 	
 }
 
