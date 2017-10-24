@@ -424,13 +424,15 @@ void SetupLoRa()
 		CSV_D "RSSI"
 		CSV_D "RSSI Packet"
 		CSV_D "Length"
-		CSV_D "MType" // see MType of the MHDR
+		CSV_D "Type" // see MType of the MHDR
 		CSV_D "IsLoRaWAN-Data"
+		CSV_D "Address"
+		CSV_D "Framecounter"
+		CSV_D "Port"
 		"\r\n"
 		);
 		printf("\tSuccess!\n");
 	}
-	
 	
     printf("Started listening at SF%i on %.6lf Mhz.\n", sf,(double)freq/1000000);
     printf("------------------\n");
@@ -504,6 +506,15 @@ void sendstat() {
 #endif // END GATEWAY_CONNECTED_TO_TTN
 
 // Convenience functions
+// Writes to file and to stdout
+void csvWriteLongInt(long int data, const char * description){
+	fprintf(csvFile, CSV_D "%li", data); 
+	printf("; %s %li", description, data);
+} 
+void csvWriteHex(uint32_t data, const char * description){
+	fprintf(csvFile, CSV_D "\"%X\"", data); 
+	printf("; %s 0x%X", description, data);
+} 
 
 /// This function collects information on the LoRaWAN payload, if present.
 /// Data: Device address, frame count, port(0x01-0xDF)
@@ -512,6 +523,15 @@ void readLoRaMacPayload(char* macpayload){
 	uint8_t offset = header->FCtrl->FOptsLen;
 	uint8_t* port = ((char*)(header + 1))+ offset; // if port is present, it follows the FOpts
 	uint8_t* EncryptedData = port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
+	
+	printf(" %d Offset", (int)offset);
+	
+	// Write CSV
+	csvWriteHex(header->DevAddr, "Address"); //fprintf(csvFile, CSV_D "%u", header->DevAddr);
+	csvWriteLongInt(header->FCnt, "Framecounter");
+	csvWriteHex(*port, "Port");
+	// Show EncryptedData
+	b64_cnt = bin_to_b64((uint8_t *)EncryptedData, (macpayload + receivedbytes) - EncryptedData, (char *)(b64), 341); // Last 4 bytes are the MIC
 	
 }
 
@@ -590,13 +610,15 @@ void readMessage_LoRaWAN(char* payload){
 	}
 	
 	// Check the MACPayload!
-	if(hasLoRaWanData) readLoRaMacPayload(payload_MACPayload);
-	// Don't continue to write to the csvFile; This packet is not important
+	if(hasLoRaWanData) {
+		readLoRaMacPayload(payload_MACPayload);
+	
 #if PRINT_DATA_ON_CLI
-	printf("\nData in base64:\t'");
-	fwrite(b64, sizeof(char), b64_cnt, stdout);
-	printf("'\n");
+		printf("\EncryptedData in base64:\t'");
+		fwrite(b64, sizeof(char), b64_cnt, stdout);
+		printf("'\n");
 #endif
+	}
 }
 
 void receivepacket() {
@@ -629,10 +651,10 @@ void receivepacket() {
                 rssicorr = 157;
             }
 
-            printf("Packet RSSI: %d, ", packetRSSI = (readRegister(0x1A)-rssicorr));
-            printf("RSSI: %d, ", RSSI = (readRegister(0x1B)-rssicorr));
-            printf("SNR: %li, ",SNR);
-            printf("Length: %i",(int)receivedbytes);
+            /*printf("Packet RSSI: %d, ",*/ packetRSSI = (readRegister(0x1A)-rssicorr);//);
+            /*printf("RSSI: %d, ",*/ RSSI = (readRegister(0x1B)-rssicorr);//);
+            //printf("SNR: %li, ",SNR);
+            //printf("Length: %i",(int)receivedbytes);
 			
 			//
 			// Store to csv if message was from testdevice
@@ -648,19 +670,18 @@ void receivepacket() {
 		"\r\n"
 		)
 			*/
-			fprintf(csvFile, 
-			"%u" CSV_D "%li" CSV_D "%li" CSV_D "%d" CSV_D "%d" CSV_D "%d", 
-			cp_nb_rx_rcv -1,now.tv_sec,
-			SNR, RSSI, packetRSSI,
-			(int)receivedbytes
-			);
+			csvWriteLongInt(cp_nb_rx_rcv -1, "no.");
+			csvWriteLongInt(now.tv_sec, "TimeEpoch");
+			csvWriteLongInt(SNR, "SNR");
+			csvWriteLongInt(RSSI, "RSSI");
+			csvWriteLongInt(packetRSSI, "PacketRSSI");
+			csvWriteLongInt(receivedbytes, "Length");
 			
 			
-#if GATEWAY_CONNECTED_TO_TTN | PRINT_DATA_ON_CLI
+#if GATEWAY_CONNECTED_TO_TTN 
             b64_cnt = bin_to_b64((uint8_t *)message, receivedbytes, (char *)(b64), 341);
             //fwrite(b64, sizeof(char), j, stdout);
-#endif
-#if GATEWAY_CONNECTED_TO_TTN
+			
             char buff_up[TX_BUFF_SIZE]; /* buffer to compose the upstream packet */
             int buff_index=0;
 
