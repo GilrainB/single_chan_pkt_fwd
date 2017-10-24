@@ -382,7 +382,7 @@ void SetupLoRa()
 		//strcat(filename, ".csv");
 		//printf("Filename='%s'\ns_buf='%s'\n", filename, s_buf);
 		
-		if(mkdir(s_fileDirectory, 0664 /*RW user group, read others*/ ) == 0 )
+		if(mkdir(s_fileDirectory, 0700/*RW user, group others none*/ ) == 0 )
 			printf("Created directory '%s'\n", s_fileDirectory); // usually directory exists
 		else
 		switch (errno){
