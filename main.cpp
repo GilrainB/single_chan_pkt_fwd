@@ -531,7 +531,7 @@ void readLoRaMacPayload(char* macpayload){
 	csvWriteLongInt(header->FCnt, "Framecounter");
 	csvWriteHex(*port, "Port");
 	// Show EncryptedData
-	b64_cnt = bin_to_b64((uint8_t *)EncryptedData, (macpayload + receivedbytes) - EncryptedData, (char *)(b64), 341); // Last 4 bytes are the MIC
+	b64_cnt = bin_to_b64((uint8_t *)EncryptedData, (macpayload + receivedbytes) - (char*)EncryptedData, (char *)(b64), 341); // Last 4 bytes are the MIC
 	
 }
 
