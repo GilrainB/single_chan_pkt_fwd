@@ -747,6 +747,12 @@ void receivepacket() {
 #endif // END GATEWAY_CONNECTED_TO_TTN
 
 			readMessage_LoRaWAN(message);
+			
+			fprintf(csvFile, "\r\n");
+			printf("\n");
+
+			fflush(csvFile);
+			fflush(stdout);
 
         } // received a message
 		
@@ -826,12 +832,6 @@ int main () {
             cp_up_pkt_fwd = 0;
         }
 #endif
-		fprintf(csvFile, "\r\n");
-		printf("\n");
-		
-		fflush(csvFile);
-		fflush(stdout);
-		
         delay(1);
     }
 
