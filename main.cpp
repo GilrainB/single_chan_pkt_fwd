@@ -43,6 +43,7 @@ byte currentMode = 0x81;
 
 char message[256];
 char b64[256];
+int b64_cnt = 0;
 
 bool sx1272 = true;
 
@@ -85,6 +86,9 @@ sf_t sf = SF7;
 
 // Set center frequency
 uint32_t  freq = 868100000; // in Mhz! (868.1)
+
+#define CSV_D "\t" // CSV delimiter for in between data/columns
+#define PRINT_DATA_ON_CLI 1
 
 // define servers
 #define GATEWAY_CONNECTED_TO_TTN 0
@@ -395,13 +399,13 @@ void SetupLoRa()
 		printf("...");
 		fprintf(csvFile,
 		"Packetno."
-		",TimeEpoch"
-		",SignalNoiseRatio"
-		",RSSI"
-		",RSSI Packet"
-		",Length"
-		",MType" // see MType of the MHDR
-		",IsLoRaWAN-Data"
+		CSV_D "TimeEpoch"
+		CSV_D "SignalNoiseRatio"
+		CSV_D "RSSI"
+		CSV_D "RSSI Packet"
+		CSV_D "Length"
+		CSV_D "MType" // see MType of the MHDR
+		CSV_D "IsLoRaWAN-Data"
 		"\r\n"
 		);
 		printf("\tSuccess!\n");
@@ -488,7 +492,7 @@ void readMessage_LoRaWAN(char* payload){
 	// Using data from LoRaWAN specification, 4 MAC Message Formats, page 15.
 	
 	bool hasLoRaWanData = false;
-	char * nextCsvStr = NULL;
+	char const * nextCsvStr = NULL;
 	char payload_MHDR = payload[0];
 	char * payload_MACPayload = payload + 1;
 	uint32_t payload_MIC = *((uint32_t*) (payload + receivedbytes - 4));
@@ -539,7 +543,7 @@ void readMessage_LoRaWAN(char* payload){
 			nextCsvStr = "Proprietary";
 			break;
 	}
-	fprintf(csvFile, ",\"%s\"", nextCsvStr); // Message Type(MType)
+	fprintf(csvFile, CSV_D "\"%s\"", nextCsvStr); // Message Type(MType)
 	printf(", %s", nextCsvStr);
 	
 	// Mayor bitfield: 00 LoRaWAN R1, else RFU
@@ -551,16 +555,21 @@ void readMessage_LoRaWAN(char* payload){
 	}
 	
 	if(hasLoRaWanData){
-		fprintf(csvFile, "1");
+		fprintf(csvFile, CSV_D "TRUE");
 		printf(", Has Lorawan data");
 	} else {
-		fprintf(csvFile, "0");
+		fprintf(csvFile, CSV_D "FALSE");
 		printf(", NO Lorawan data");
 	}
 	
 	// Check the MACPayload!
 	if(hasLoRaWanData) readLoRaMacPayload(payload_MACPayload);
-	else fprintf(csvFile, ",,,"); // Needs to contain a fixed amount of commas
+	// Don't continue to write to the csvFile; This packet is not important
+#if PRINT_DATA_ON_CLI
+	printf("\nData in base64:\t'");
+	fwrite(b64, sizeof(char), b64_cnt, stdout);
+	printf("'\n");
+#endif
 }
 
 void receivepacket() {
@@ -613,17 +622,18 @@ void receivepacket() {
 		)
 			*/
 			fprintf(csvFile, 
-			"%u,%li,%li,%d,%d,%d", 
+			"%u" CSV_D "%li" CSV_D "%li" CSV_D "%d" CSV_D "%d" CSV_D "%d", 
 			cp_nb_rx_rcv -1,now.tv_sec,
 			SNR, RSSI, packetRSSI,
 			(int)receivedbytes
 			);
 			
 			
-#if GATEWAY_CONNECTED_TO_TTN
-            int j;
-            j = bin_to_b64((uint8_t *)message, receivedbytes, (char *)(b64), 341);
+#if GATEWAY_CONNECTED_TO_TTN | PRINT_DATA_ON_CLI
+            b64_cnt = bin_to_b64((uint8_t *)message, receivedbytes, (char *)(b64), 341);
             //fwrite(b64, sizeof(char), j, stdout);
+#endif
+#if GATEWAY_CONNECTED_TO_TTN
             char buff_up[TX_BUFF_SIZE]; /* buffer to compose the upstream packet */
             int buff_index=0;
 
