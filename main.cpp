@@ -524,7 +524,7 @@ void readLoRaMacPayload(char* macpayload){
 	uint8_t * port   		= ((uint8_t *)(macpayload + 1)) + offset; // if port is present, it follows the FOpts
 	uint8_t * EncryptedData	= port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
 	
-	printf(" FCtrl 0x%X", header->FCtrl >>4);
+	printf(" FCtrl 0x%X", *((uint8_t*) (&(header->FCtrl))) ); // Turn header->FCtrl into an uint8 pointer, then dereference it.
 	printf(" %d Offset", (int)offset);
 	
 	// Write CSV
