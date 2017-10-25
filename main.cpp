@@ -73,8 +73,23 @@ enum sf_t { SF7=7, SF8, SF9, SF10, SF11, SF12 };
 // Normal BW is BW125
 enum LoRaChan {LoRaChan_0=868100000, LoRaChan_1=868300000, LoRaChan_2=868500000, LoRaChan_Test_0=869462500, LoRaChan_Test_1=869587500, LoRaChan_Test_0_BW250=869525000 };
 
-// Bitfields are assigned from least to most significant; reversed from the 'real' situation.
-typedef struct { 		// Frame Control, uplink structure
+// Bitfields are assigned from least to most significant; reversed from the 'real' situation, according to sources
+// DevAddr has been verified readeable(which means FHDR_T is correct)
+// The reversed struct seemed to be the correct working version;
+// When a node was sending packets with ADR on, The reversed struct(second) would output FOptsLen 0, but the non-reversed struct returned 8. 
+// Therefore will the second struct be used as FCtrl_t
+/*
+typedef struct {                // Frame Control, uplink structure
+        bool ADR:1;             // Adaptive Data Rate control
+        bool ADRACKReq:1;       // Request for acknowledgment (on this message)
+        bool ACK:1;                     // When receiving a confirmed data message, the receiver shall respond with a data frame that has this acknowledgment bit (ACK) set.
+        bool FPending:1;        // Frame pending bit, only used in downlink communication(so ignore for uplink info from Nodes).
+        // Indicating that the gateway has more data pending to be sent; it's therefore asking the end-device to open another receive window ASAP by sending another uplink message.
+        uint8_t FOptsLen:4;     // Length of the frame options. Can be 0 to 15 bytes. This amount is the offset for the actual data following FCnt in FHDR_t.
+} FCtrl_t;
+*/
+
+typedef struct { 		// Frame Control, uplink structure reversed
 	uint8_t FOptsLen:4;	// Length of the frame options. Can be 0 to 15 bytes. This amount is the offset for the actual data following  FCnt in FHDR_t.
 	bool FPending:1;	// Frame pending bit, only used in downlink communication(so ignore for uplink info from Nodes).
 	// Indicating that the gateway has more data pending to be sent it's therefore asking the end-device to open another receive window ASAP by sending another uplink message.
@@ -84,9 +99,9 @@ typedef struct { 		// Frame Control, uplink structure
 } FCtrl_t;
 
 typedef struct {
-	uint16_t FCnt;		// Frame counter
-	FCtrl_t FCtrl;		// Frame Control
-	uint32_t DevAddr;	// Device address
+        uint32_t DevAddr;       // Device address --> Verified
+        FCtrl_t FCtrl;          // Frame Control
+        uint16_t FCnt;          // Frame counter
 	// Not included: FOpts; these could not have been included in the frame
 } FHDR_t;
 
@@ -426,6 +441,7 @@ void SetupLoRa()
 		CSV_D "Length"
 		CSV_D "Type" // see MType of the MHDR
 		CSV_D "IsLoRaWAN-Data"
+		CSV_D "FCtrl"
 		CSV_D "Address"
 		CSV_D "Framecounter"
 		CSV_D "Port"
@@ -524,8 +540,10 @@ void readLoRaMacPayload(char* macpayload){
 	uint8_t * port   		= ((uint8_t *)(macpayload + 1)) + offset; // if port is present, it follows the FOpts
 	uint8_t * EncryptedData	= port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
 	
-	printf(" FCtrl 0x%X", *((uint8_t*) (&(header->FCtrl))) ); // Turn header->FCtrl into an uint8 pointer, then dereference it.
-	printf(" %d Offset", (int)offset);
+	// printf(" FCtrl 0x%X", *((uint8_t*) (&(header->FCtrl))) ); // Turn header->FCtrl into an uint8 pointer, then dereference it.
+	csvWriteHex(*((uint8_t*) (&(header->FCtrl))), "FCtrl" );
+	//printf(" %d Offset(or reversed %d)", (int)offset,  (( (FCtrl_rev_t*) (&(header->FCtrl)) )->FOptsLen)  );
+	printf(" Offset[%d]", (int)offset);
 	
 	// Write CSV
 	csvWriteHex(header->DevAddr, "Address"); //fprintf(csvFile, CSV_D "%u", header->DevAddr);
@@ -615,7 +633,7 @@ void readMessage_LoRaWAN(char* payload){
 		readLoRaMacPayload(payload_MACPayload);
 	
 #if PRINT_DATA_ON_CLI
-		printf("\EncryptedData in base64:\t'");
+		printf(" EncryptedData in base64:\t'");
 		fwrite(b64, sizeof(char), b64_cnt, stdout);
 		printf("' MIC: 0x%X\n", payload_MIC);
 #endif
