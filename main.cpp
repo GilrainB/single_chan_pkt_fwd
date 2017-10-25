@@ -84,9 +84,9 @@ typedef struct { 		// Frame Control, uplink structure
 } FCtrl_t;
 
 typedef struct {
-	uint32_t DevAddr;	// Device address
-	FCtrl_t FCtrl;		// Frame Control
 	uint16_t FCnt;		// Frame counter
+	FCtrl_t FCtrl;		// Frame Control
+	uint32_t DevAddr;	// Device address
 	// Not included: FOpts; these could not have been included in the frame
 } FHDR_t;
 
@@ -509,7 +509,7 @@ void sendstat() {
 // Writes to file and to stdout
 void csvWriteLongInt(long int data, const char * description){
 	fprintf(csvFile, CSV_D "%li", data); 
-	printf("; %s %li", description, data);
+	printf(" %s %li", description, data);
 } 
 void csvWriteHex(uint32_t data, const char * description){
 	fprintf(csvFile, CSV_D "\"%X\"", data); 
@@ -524,6 +524,7 @@ void readLoRaMacPayload(char* macpayload){
 	uint8_t * port   		= ((uint8_t *)(macpayload + 1)) + offset; // if port is present, it follows the FOpts
 	uint8_t * EncryptedData	= port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
 	
+	printf(" FCtrl 0x%X", header->FCtrl >>4);
 	printf(" %d Offset", (int)offset);
 	
 	// Write CSV
@@ -603,10 +604,10 @@ void readMessage_LoRaWAN(char* payload){
 	
 	if(hasLoRaWanData){
 		fprintf(csvFile, CSV_D "TRUE");
-		printf(", Has Lorawan data");
+		printf(" with LoRaWAN data;");
 	} else {
 		fprintf(csvFile, CSV_D "FALSE");
-		printf(", NO Lorawan data");
+		printf(", NO LoRaWAN data.");
 	}
 	
 	// Check the MACPayload!
@@ -670,7 +671,9 @@ void receivepacket() {
 		"\r\n"
 		)
 			*/
-			csvWriteLongInt(cp_nb_rx_rcv -1, "no.");
+			//csvWriteLongInt(cp_nb_rx_rcv -1, "no.");
+			printf("Packet %u " ,  cp_nb_rx_rcv-1 );
+			fprintf(csvFile, "%u", cp_nb_rx_rcv-1 );
 			csvWriteLongInt(now.tv_sec, "TimeEpoch");
 			csvWriteLongInt(SNR, "SNR");
 			csvWriteLongInt(RSSI, "RSSI");
