@@ -100,7 +100,7 @@ typedef struct { 		// Frame Control, uplink structure reversed
 
 typedef struct {
         uint32_t DevAddr;       // Device address --> Verified
-        FCtrl_t FCtrl;          // Frame Control
+        uint8_t FCtrl;          // Frame Control
         uint16_t FCnt;          // Frame counter
 	// Not included: FOpts; these could not have been included in the frame
 } FHDR_t;
@@ -561,7 +561,7 @@ void csvWriteHex(uint32_t data, const char * description){
 /// Data: Device address, frame count, port(0x01-0xDF)
 void readLoRaMacPayload(char* macpayload){
 	FHDR_t  * header 		= (FHDR_t * ) macpayload;
-	uint8_t   offset 		= header->FCtrl.FOptsLen;
+	uint8_t   offset 		= ((FCtrl_t)header->FCtrl).FOptsLen;
 	uint8_t * port   		= ((uint8_t *)(header + 1)) + offset; // if port is present, it follows the FOpts
 	uint8_t * EncryptedData	= port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
 	
