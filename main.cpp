@@ -105,6 +105,19 @@ typedef struct {
 	// Not included: FOpts; these could not have been included in the frame
 } FHDR_t;
 
+// Dissection of a real Payload: 0x'80451901268033000F324B702308C69D49BA0B6FF5A77E285480878377'
+
+// 80 MHDR(MType, RFU en Major) = Confirmed Data Up, -, 0
+
+// FHDR_t
+// 45190126 --> 0x26011945 DevAddr
+// 80 FCtrl_t --> ACK request(confirmed msg)
+// 3300 --> 0x0033 FCnt = 57(dec)
+
+// Port 0x0F = 15
+// Data 324B702308C69D49BA0B6FF5A77E2854
+// MIC 80878377
+
 /*******************************************************************************
  *
  * Configure these values!
@@ -549,7 +562,7 @@ void csvWriteHex(uint32_t data, const char * description){
 void readLoRaMacPayload(char* macpayload){
 	FHDR_t  * header 		= (FHDR_t * ) macpayload;
 	uint8_t   offset 		= header->FCtrl.FOptsLen;
-	uint8_t * port   		= ((uint8_t *)(macpayload + 1)) + offset; // if port is present, it follows the FOpts
+	uint8_t * port   		= ((uint8_t *)(header + 1)) + offset; // if port is present, it follows the FOpts
 	uint8_t * EncryptedData	= port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
 	
 	// printf(" FCtrl 0x%X", *((uint8_t*) (&(header->FCtrl))) ); // Turn header->FCtrl into an uint8 pointer, then dereference it.
