@@ -98,12 +98,15 @@ typedef struct { 		// Frame Control, uplink structure reversed
 	bool ADR:1; 		// Adaptive Data Rate control
 } FCtrl_t;
 
+#pragma pack(push)  /* push current alignment to stack */
+#pragma pack(1)     /* set alignment to 1 byte boundary */
 typedef struct {
         uint32_t DevAddr;       // Device address --> Verified
-        uint8_t FCtrl;          // Frame Control
+        FCtrl_t FCtrl;          // Frame Control
         uint16_t FCnt;          // Frame counter
 	// Not included: FOpts; these could not have been included in the frame
 } FHDR_t;
+#pragma pack(pop)   /* restore original alignment from stack */
 
 // Dissection of a real Payload: 0x'80451901268033000F324B702308C69D49BA0B6FF5A77E285480878377'
 
@@ -561,13 +564,15 @@ void csvWriteHex(uint32_t data, const char * description){
 /// Data: Device address, frame count, port(0x01-0xDF)
 void readLoRaMacPayload(char* macpayload){
 	FHDR_t  * header 		= (FHDR_t * ) macpayload;
-	FCtrl_t * FCtrl         = (FCtrl_t*) (&header->FCtrl);
+	FCtrl_t * FCtrl                 = (FCtrl_t*) (&header->FCtrl);
 	uint8_t   offset 		= FCtrl->FOptsLen;
-	uint8_t * port   		= ((uint8_t *)(header + 1)) + offset; // if port is present, it follows the FOpts
-	uint8_t * EncryptedData	= port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
+	uint8_t * port   		= ((uint8_t*) macpayload) + sizeof(FHDR_t) + offset; // if port is present, it follows the FOpts
+	uint8_t * EncryptedData         = port + 1; // If port field is present, skip the port field, else the data starts at port, if data is present
 	
+	//csvWriteLongInt(sizeof(FCtrl_t), "Sizeof(FCtrl_t)"); // is 1, 1 expected
+	//csvWriteLongInt(sizeof(FHDR_t), "Sizeof(FHDR_t)"); // is 7, 7 expected, was 8 due to Data structure alignment.
 	// printf(" FCtrl 0x%X", *((uint8_t*) (&(header->FCtrl))) ); // Turn header->FCtrl into an uint8 pointer, then dereference it.
-	csvWriteHex(*((uint8_t*) (&(header->FCtrl))), "FCtrl" );
+	csvWriteHex(*((uint8_t*) (FCtrl)), "FCtrl" );
 	//printf(" %d Offset(or reversed %d)", (int)offset,  (( (FCtrl_rev_t*) (&(header->FCtrl)) )->FOptsLen)  );
 	printf(" Offset[%d]", (int)offset);
 	
