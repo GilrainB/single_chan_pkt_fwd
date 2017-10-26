@@ -124,6 +124,7 @@ uint32_t  freq = 868100000; // in Mhz! (868.1)
 
 #define CSV_D "\t" // CSV delimiter for in between data/columns
 #define PRINT_DATA_ON_CLI 1
+#define PRINT_RAW_DATA 1
 
 // define servers
 #define GATEWAY_CONNECTED_TO_TTN 0
@@ -290,12 +291,23 @@ boolean receivePkt(char *payload)
         byte receivedCount = readRegister(REG_RX_NB_BYTES);
         receivedbytes = receivedCount;
 
+#if PRINT_RAW_DATA
+	printf("Payload: 0x'");
+#endif
+
         writeRegister(REG_FIFO_ADDR_PTR, currentAddr);
 
         for(int i = 0; i < receivedCount; i++)
         {
             payload[i] = (char)readRegister(REG_FIFO);
+
+#if PRINT_RAW_DATA
+            fprintf(stdout, "%02X", payload[i]);
         }
+	printf("'\n");
+#else
+        }
+#endif
     }
     return true;
 }
