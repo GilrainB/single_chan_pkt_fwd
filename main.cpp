@@ -687,16 +687,16 @@ void receivepacket() {
 			gettimeofday(&now, NULL);
 			
             byte value = readRegister(REG_PKT_SNR_VALUE);
-            if( value & 0x80 ) // The SNR sign bit is 1
-            {
+            //if( value & 0x80 ) // The SNR sign bit is 1
+            //{
                 // Invert and divide by 4
-                SNR = (( ~value + 1 ) & 0xFF ) / -2.0f;
-            }
+                SNR = (value) / -2.0f;
+            /*}
             else
             {
                 // Divide by 4
                 SNR = ( value & 0xFF ) / 2.0f;
-            }
+            }*/
             
             if (sx1272) {
                 rssicorr = 139;
@@ -708,14 +708,16 @@ void receivepacket() {
 			packetRSSI = readRegister(0x1A);
 			RSSI = readRegister(0x1B);
 			
+			if (SNR < 0) {
+				packetRSSI += SNR * 0.25; //From sx1272 datasheet
+			} else if(sx1272) {
+				// Use alternative formula
+				packetRSSI *= 0.25; //From sx1272 datasheet
+			}
+			
 			// Normal correction
 			packetRSSI -= rssicorr;
 			RSSI -= rssicorr;
-			
-			if (SNR < 0) {
-				// Use alternative formula
-				packetRSSI += 0.25 * SNR; 
-			}
 			
 			//
 			// Store to csv if message was from testdevice
