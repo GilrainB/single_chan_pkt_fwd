@@ -159,7 +159,6 @@ int   alt=0;
 static char platform[24]    = "Single Channel Gateway";  /* platform definition */
 static char email[40]       = "";                        /* used for contact email */
 static char description[64] = "";                        /* used for free form description */
-
 #endif
 
 // #############################################
@@ -462,6 +461,7 @@ void SetupLoRa()
 		printf("...");
 		fprintf(csvFile,
 		"Packetno."
+		CSV_D "SF"
 		CSV_D "TimeEpoch"
 		CSV_D "SignalNoiseRatio"
 		CSV_D "RSSI"
@@ -736,6 +736,7 @@ void receivepacket() {
 			//csvWriteLongInt(cp_nb_rx_rcv -1, "no.");
 			printf("Packet %u " ,  cp_nb_rx_rcv-1 );
 			fprintf(csvFile, "%u", cp_nb_rx_rcv-1 );
+			csvWriteLongInt(sf, "SF");
 			csvWriteLongInt(now.tv_sec, "TimeEpoch");
 			csvWriteFloat(SNR, "SNR");
 			csvWriteFloat(RSSI, "RSSI");
@@ -871,13 +872,32 @@ void receivepacket() {
 		
 }
 
+void gpioInterrupt(){
+	
+	receivepacket();
+
+#if GATEWAY_CONNECTED_TO_TTN
+
+    static uint32_t lasttime;
+	
+	gettimeofday(&nowtime, NULL);
+	uint32_t nowseconds = (uint32_t)(nowtime.tv_sec);
+	if (nowseconds - lasttime >= 30) {
+		lasttime = nowseconds;
+		sendstat();
+		cp_nb_rx_rcv = 0;
+		cp_nb_rx_ok = 0;
+		cp_up_pkt_fwd = 0;
+	}
+#endif
+}
+
 // END Convenience functions
 
 int main () {
 
     struct timeval nowtime;
 #if GATEWAY_CONNECTED_TO_TTN
-    uint32_t lasttime;
 #endif
 	
 	while (1) {
@@ -930,22 +950,14 @@ int main () {
 		   
 #endif
 
+	// Setup interrupt for dio0(raspberry GPIO 7)
+	if ( wiringPiISR (dio0, INT_EDGE_RISING, &gpioInterrupt) < 0 ) {
+		fprintf (stderr, "Unable to setup ISR: %s\n", strerror (errno));
+		return 1;
+	}
+
     while(1) {
-
-        receivepacket();
-
-#if GATEWAY_CONNECTED_TO_TTN
-        gettimeofday(&nowtime, NULL);
-        uint32_t nowseconds = (uint32_t)(nowtime.tv_sec);
-        if (nowseconds - lasttime >= 30) {
-            lasttime = nowseconds;
-            sendstat();
-            cp_nb_rx_rcv = 0;
-            cp_nb_rx_ok = 0;
-            cp_up_pkt_fwd = 0;
-        }
-#endif
-        delay(1);
+		// Wait for interrupt
     }
 
     return (0);
