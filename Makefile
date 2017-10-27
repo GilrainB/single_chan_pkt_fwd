@@ -2,7 +2,7 @@
 # Single Channel LoRaWAN Gateway
 
 CC=g++
-CFLAGS=-c -Wall
+CFLAGS=-c -Wall -Ofast
 LIBS=-lwiringPi
 
 all: single_chan_pkt_fwd

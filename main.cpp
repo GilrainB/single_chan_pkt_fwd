@@ -558,7 +558,11 @@ void csvWriteLongInt(long int data, const char * description){
 void csvWriteHex(uint32_t data, const char * description){
 	fprintf(csvFile, CSV_D "\"%X\"", data); 
 	printf("; %s 0x%X", description, data);
-} 
+}
+void csvWriteFloat(float data, const char * description){
+	fprintf(csvFile, CSV_D "%1.4f", data); 
+	printf(" %s %1.5f", description, data);
+}  
 
 /// This function collects information on the LoRaWAN payload, if present.
 /// Data: Device address, frame count, port(0x01-0xDF)
@@ -673,8 +677,8 @@ void readMessage_LoRaWAN(char* payload){
 
 void receivepacket() {
 
-    long int SNR;
-    int rssicorr, packetRSSI, RSSI;
+    float SNR;
+    float rssicorr, packetRSSI, RSSI;
 	struct timeval now;
 
     if(digitalRead(dio0) == 1)
@@ -686,13 +690,12 @@ void receivepacket() {
             if( value & 0x80 ) // The SNR sign bit is 1
             {
                 // Invert and divide by 4
-                value = ( ( ~value + 1 ) & 0xFF ) >> 2;
-                SNR = -value;
+                SNR = (( ~value + 1 ) & 0xFF ) / -2.0f;
             }
             else
             {
                 // Divide by 4
-                SNR = ( value & 0xFF ) >> 2;
+                SNR = ( value & 0xFF ) / 2.0f;
             }
             
             if (sx1272) {
@@ -701,10 +704,18 @@ void receivepacket() {
                 rssicorr = 157;
             }
 
-            /*printf("Packet RSSI: %d, ",*/ packetRSSI = (readRegister(0x1A)-rssicorr);//);
-            /*printf("RSSI: %d, ",*/ RSSI = (readRegister(0x1B)-rssicorr);//);
-            //printf("SNR: %li, ",SNR);
-            //printf("Length: %i",(int)receivedbytes);
+			// First get the RSSI values
+			packetRSSI = readRegister(0x1A);
+			RSSI = readRegister(0x1B);
+			
+			// Normal correction
+			packetRSSI -= rssicorr;
+			RSSI -= rssicorr;
+			
+			if (SNR < 0) {
+				// Use alternative formula
+				packetRSSI += 0.25 * SNR; 
+			}
 			
 			//
 			// Store to csv if message was from testdevice
@@ -724,9 +735,9 @@ void receivepacket() {
 			printf("Packet %u " ,  cp_nb_rx_rcv-1 );
 			fprintf(csvFile, "%u", cp_nb_rx_rcv-1 );
 			csvWriteLongInt(now.tv_sec, "TimeEpoch");
-			csvWriteLongInt(SNR, "SNR");
-			csvWriteLongInt(RSSI, "RSSI");
-			csvWriteLongInt(packetRSSI, "PacketRSSI");
+			csvWriteFloat(SNR, "SNR");
+			csvWriteFloat(RSSI, "RSSI");
+			csvWriteFloat(packetRSSI, "PacketRSSI");
 			csvWriteLongInt(receivedbytes, "Length");
 			
 			
