@@ -560,8 +560,8 @@ void csvWriteHex(uint32_t data, const char * description){
 	printf("; %s 0x%X", description, data);
 }
 void csvWriteFloat(float data, const char * description){
-	fprintf(csvFile, CSV_D "%1.4f", data); 
-	printf(" %s %1.5f", description, data);
+	fprintf(csvFile, CSV_D "%f", data); 
+	printf(" %s %f", description, data);
 }  
 
 /// This function collects information on the LoRaWAN payload, if present.
@@ -686,11 +686,11 @@ void receivepacket() {
 			
 			gettimeofday(&now, NULL);
 			
-            byte value = readRegister(REG_PKT_SNR_VALUE);
+            int8_t value = readRegister(REG_PKT_SNR_VALUE);
             //if( value & 0x80 ) // The SNR sign bit is 1
             //{
                 // Invert and divide by 4
-                SNR = (value) / -2.0f;
+                SNR = (value) / 4.0f;
             /*}
             else
             {
