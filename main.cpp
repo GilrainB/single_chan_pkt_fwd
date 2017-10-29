@@ -608,6 +608,16 @@ void readLoRaMacPayload(char* macpayload){
 	// Show EncryptedData
 	b64_cnt = bin_to_b64((uint8_t *)EncryptedData, (macpayload + receivedbytes) - (char*)EncryptedData, (char *)(b64), 341); // Last 4 bytes are the MIC
 	
+	if(header->DevAddr == NODE_DEVICE_ADDRESS){
+		printf("\nNode");
+		
+		switch(*port){ // Can do different things based on the port
+			default:
+				printf("@port %u", (unsigned) *port);
+			break;
+		}
+	}
+	
 }
 
 void readMessage_LoRaWAN(char* payload){
