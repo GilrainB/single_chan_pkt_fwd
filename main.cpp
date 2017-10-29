@@ -138,6 +138,13 @@ sf_t sf = SF7;
 // Set center frequency
 uint32_t  freq = 868100000; // in Mhz! (868.1)
 
+// Node(client) device to listen to
+#define NODE_DEVICE_ADDRESS 0x26011505
+
+// TESTGateway settings
+#define LNA_GAIN LNA_MAX_GAIN
+
+// CSV- and data settings
 #define CSV_D "\t" // CSV delimiter for in between data/columns
 #define PRINT_DATA_ON_CLI 1
 #define PRINT_RAW_DATA 1
@@ -392,30 +399,44 @@ void SetupLoRa()
 		bit 3 LowDataRateOptimize; 0 = Disabled, 1 = Enabled; mandated for when the symbol length exceeds 16ms
 		bit 2 AgcAutoOn; 0 = LNA gain set by register LnaGain, 1 = LNA gain set by the internal AGC loop
 		 */
+		byte value = 0;
+#ifndef LNA_GAIN
+		// If LNA gain is defined, ACG must not be set to automatic, otherwise
+		// Set LNA_GAIN to auto automatic, using the internal AGC loop
+		value = 0x04;
+#endif
         if (sf == SF11 || sf == SF12) {
-            writeRegister(REG_MODEM_CONFIG3,0x0C);
-        } else {
-            writeRegister(REG_MODEM_CONFIG3,0x04);
-        }
-        writeRegister(REG_MODEM_CONFIG,0x72);
-		//
+            value |= 0x08; // enable LowDataRateOptimize
+		}
+		writeRegister(REG_MODEM_CONFIG3, value);
+
+		// REG_MODEM_CONFIG: General settings
 		// 0x72= 0111 001 0
 		// 0111 = BW125 kHz
 		// 001 = codingrate 4/5
 		// 0 = Explicit mode('automatic', no filtering on packet header)
+        writeRegister(REG_MODEM_CONFIG,0x72);
+		
+		// REG_MODEM_CONFIG2: More settings
+		// 7-4 = spreadingfactor, may be 6-12, but is 7-12 for LoRa
+		// 3 = tx continuous, if 0, a single packet is sent
+		// 2 = Enable CRC generation and check on payload	(enabled)
+		// 1-0 = RX Time-Out MSB
         writeRegister(REG_MODEM_CONFIG2,(sf<<4) | 0x04);
     }
 
+	// We're in continuous mode so this won't do anything
     if (sf == SF10 || sf == SF11 || sf == SF12) {
         writeRegister(REG_SYMB_TIMEOUT_LSB,0x05);
     } else {
         writeRegister(REG_SYMB_TIMEOUT_LSB,0x08);
     }
-    writeRegister(REG_MAX_PAYLOAD_LENGTH,0x80);
-    writeRegister(REG_PAYLOAD_LENGTH,PAYLOAD_LENGTH);
+    writeRegister(REG_MAX_PAYLOAD_LENGTH, 0x20);//0x80); // Actually the sent payload is always less than... 32 for tests, a minimum of 14(1 byte data).
+    writeRegister(REG_PAYLOAD_LENGTH, PAYLOAD_LENGTH); // This will only have effect in implicit mode, but LoRaWAN is actually always in explicit mode
     writeRegister(REG_HOP_PERIOD,0xFF);
     writeRegister(REG_FIFO_ADDR_PTR, readRegister(REG_FIFO_RX_BASE_AD));
 
+	writeRegister(REG_DIO_MAPPING_1, 0b00<<6); // Rx/Tx ready
     // Set Continous Receive Mode
     writeRegister(REG_LNA, LNA_MAX_GAIN);  // max lna gain
     writeRegister(REG_OPMODE, SX72_MODE_RX_CONTINUOS);
