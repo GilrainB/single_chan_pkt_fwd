@@ -136,13 +136,14 @@ int RST   = 0;
 sf_t sf = SF7;
 
 // Set center frequency
-uint32_t  freq = 868100000; // in Mhz! (868.1)
+uint32_t freq = 868100000; // 868.1 Mhz!
 
 // Node(client) device to listen to
 #define NODE_DEVICE_ADDRESS 0x26011505
 
 // TESTGateway settings
 #define LNA_GAIN LNA_MAX_GAIN
+#define CHANGE_SF_ACCORDINGLY	0
 
 // CSV- and data settings
 #define CSV_D "\t" // CSV delimiter for in between data/columns
@@ -610,12 +611,37 @@ void readLoRaMacPayload(char* macpayload){
 	
 	if(header->DevAddr == NODE_DEVICE_ADDRESS){
 		printf("\nNode");
+		byte changes = 0;
 		
 		switch(*port){ // Can do different things based on the port
+#if CHANGE_SF_ACCORDINGLY == 1
+		case 0x30: // SF = 12
+		case 0x31: // SF = 11
+		case 0x32: // SF = 10
+		case 0x33: // SF = 9
+		case 0x34: // SF = 8
+		case 0x35: // SF = 7
+			sf = 12 - ((*port) & 0x0F);
+			changes |= 1;
+			break;
+		case 0x29: // The end of a sequence, so return to sf 12
+			if(sf != 12) {
+				sf = 12;
+				changes |= 1;
+			}
+#endif
 			default:
 				printf("@port %u", (unsigned) *port);
 			break;
 		}
+		
+#if CHANGE_SF_ACCORDINGLY == 1
+		if (changes & 0x01) {
+			writeRegister(REG_OPMODE, SX72_MODE_SLEEP); // Switch to sleep
+			writeRegister(REG_MODEM_CONFIG2,(sf<<4) | 0x04); // Change SF
+			writeRegister(REG_OPMODE, SX72_MODE_RX_CONTINUOS); // Switch back to continuous RX
+		}
+#endif
 	}
 	
 }
