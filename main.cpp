@@ -640,6 +640,19 @@ void readLoRaMacPayload(char* macpayload){
 			writeRegister(REG_OPMODE, SX72_MODE_SLEEP); // Switch to sleep
 			writeRegister(REG_MODEM_CONFIG2,(sf<<4) | 0x04); // Change SF
 			writeRegister(REG_OPMODE, SX72_MODE_RX_CONTINUOS); // Switch back to continuous RX
+			
+			byte value = 0;
+#ifndef LNA_GAIN
+			// If LNA gain is defined, ACG must not be set to automatic, otherwise
+			// Set LNA_GAIN to auto automatic, using the internal AGC loop
+			value = 0x04;
+#endif
+			if (sf == SF11 || sf == SF12) {
+				value |= 0x08; // enable LowDataRateOptimize
+			}
+			writeRegister(REG_MODEM_CONFIG3, value); // If this value is not changed, packets get corrupted.
+			
+			printf("\nNow listening on SF%d\n", (int)sf);
 		}
 #endif
 	}
