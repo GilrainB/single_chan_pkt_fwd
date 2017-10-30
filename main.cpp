@@ -621,12 +621,12 @@ void readLoRaMacPayload(char* macpayload){
 		case 0x33: // SF = 9
 		case 0x34: // SF = 8
 		case 0x35: // SF = 7
-			sf = 12 - ((*port) & 0x0F);
+			sf = (sf_t)(12 - ((*port) & 0x0F));
 			changes |= 1;
 			break;
 		case 0x29: // The end of a sequence, so return to sf 12
 			if(sf != 12) {
-				sf = 12;
+				sf = (sf_t)12;
 				changes |= 1;
 			}
 #endif
