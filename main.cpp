@@ -147,8 +147,9 @@ uint32_t freq = 868100000; // 868.1 Mhz!
 
 // CSV- and data settings
 #define CSV_D "\t" // CSV delimiter for in between data/columns
-#define PRINT_DATA_ON_CLI 1
-#define PRINT_RAW_DATA 1
+#define PRINT_DATA_ON_CLI	1
+#define PRINT_RAW_DATA  	1
+#define PRINT_COLORS    	1
 
 // define servers
 #define GATEWAY_CONNECTED_TO_TTN 0
@@ -242,6 +243,16 @@ static char description[64] = "";                        /* used for free form d
 #define TX_BUFF_SIZE  2048
 #define STATUS_SIZE	  1024
 
+#if PRINT_COLORS == 1
+#define COLOR_RED   	"\033[0;31m"
+#define COLOR_YELLOW	"\033[0;33m"
+#define COLOR_RESET 	"\033[0m"
+#else
+#define COLOR_RED   	""
+#define COLOR_YELLOW	""
+#define COLOR_RESET 	""
+#endif
+
 // ESSENTIALS
 
 void die(const char *s)
@@ -315,7 +326,7 @@ boolean receivePkt(char *payload)
         receivedbytes = receivedCount;
 
 #if PRINT_RAW_DATA
-	printf("Payload: 0x'");
+		printf("Payload: 0x" COLOR_YELLOW);
 #endif
 
         writeRegister(REG_FIFO_ADDR_PTR, currentAddr);
@@ -327,7 +338,7 @@ boolean receivePkt(char *payload)
 #if PRINT_RAW_DATA
             fprintf(stdout, "%02X", payload[i]);
         }
-	printf("'\n");
+		printf(COLOR_RESET "\n"); // Reset color
 #else
         }
 #endif
@@ -352,6 +363,7 @@ void SetupLoRa()
     delay(2);
 
     byte version = readRegister(REG_VERSION);
+	printf(COLOR_RED);
 
     if (version == 0x22) {
         // sx1272
@@ -375,7 +387,7 @@ void SetupLoRa()
             exit(1);
         }
     }
-	puts("\n");
+	puts(COLOR_RESET"\n");
 
     writeRegister(REG_OPMODE, SX72_MODE_SLEEP);
 
@@ -478,7 +490,7 @@ void SetupLoRa()
 				exit(1);
 		}
 		
-		printf("Opening file '%s'", filename);
+		printf("Initializing file '%s'\n", filename);
 		csvFile = fopen(filename, "w");
 		printf("...");
 		fprintf(csvFile,
@@ -497,11 +509,10 @@ void SetupLoRa()
 		CSV_D "Port"
 		"\r\n"
 		);
-		printf("\tSuccess!\n");
 	}
 	
     printf("Started listening at SF%i on %.6lf Mhz.\n", sf,(double)freq/1000000);
-    printf("------------------\n");
+    printf(COLOR_YELLOW "------------------" COLOR_RESET "\n");
 }
 // END LoRa hardware functions
 
@@ -575,15 +586,15 @@ void sendstat() {
 // Writes to file and to stdout
 void csvWriteLongInt(long int data, const char * description){
 	fprintf(csvFile, CSV_D "%li", data); 
-	printf(" %s %li", description, data);
+	printf( COLOR_YELLOW " %s" COLOR_RESET " %li", description, data);
 } 
 void csvWriteHex(uint32_t data, const char * description){
 	fprintf(csvFile, CSV_D "\"%X\"", data); 
-	printf("; %s 0x%X", description, data);
+	printf( COLOR_YELLOW " %s" COLOR_RESET " 0x%X", description, data);
 }
 void csvWriteFloat(float data, const char * description){
 	fprintf(csvFile, CSV_D "%f", data); 
-	printf(" %s %f", description, data);
+	printf( COLOR_YELLOW " %s" COLOR_RESET " %f", description, data);
 }  
 
 /// This function collects information on the LoRaWAN payload, if present.
@@ -652,7 +663,7 @@ void readLoRaMacPayload(char* macpayload){
 			}
 			writeRegister(REG_MODEM_CONFIG3, value); // If this value is not changed, packets get corrupted.
 			
-			printf("\nNow listening on SF%d\n", (int)sf);
+			printf("\tNow listening on SF%d", (int)sf);
 		}
 #endif
 	}
@@ -738,7 +749,7 @@ void readMessage_LoRaWAN(char* payload){
 		readLoRaMacPayload(payload_MACPayload);
 	
 #if PRINT_DATA_ON_CLI
-		printf(" EncryptedData in base64:\t'");
+		printf("\nEncryptedData in base64:\t'");
 		fwrite(b64, sizeof(char), b64_cnt, stdout);
 		printf("' MIC: 0x%X\n", payload_MIC);
 #endif
