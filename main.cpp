@@ -143,7 +143,7 @@ uint32_t freq = 868100000; // 868.1 Mhz!
 
 // TESTGateway settings
 #define LNA_GAIN LNA_MAX_GAIN
-#define CHANGE_SF_ACCORDINGLY	0
+#define CHANGE_SF_ACCORDINGLY	1
 
 // CSV- and data settings
 #define CSV_D "\t" // CSV delimiter for in between data/columns
