@@ -618,9 +618,9 @@ void readLoRaMacPayload(char* macpayload){
 	printf(" Offset[%d]", (int)offset);
 	
 	// Write CSV
-	csvWriteHex(header->DevAddr, "Address"); //fprintf(csvFile, CSV_D "%u", header->DevAddr);
+	csvWriteHex(header->DevAddr, "Address" COLOR_GREEN); //fprintf(csvFile, CSV_D "%u", header->DevAddr);
 	csvWriteLongInt(header->FCnt, "Framecounter");
-	csvWriteHex(*port, "Port");
+	csvWriteHex(*port, "Port" COLOR_RED);
 	// Show EncryptedData
 	b64_cnt = bin_to_b64((uint8_t *)EncryptedData, (macpayload + receivedbytes) - (char*)EncryptedData, (char *)(b64), 341); // Last 4 bytes are the MIC
 	
@@ -822,9 +822,9 @@ void receivepacket() {
 			//csvWriteLongInt(cp_nb_rx_rcv -1, "no.");
 			printf(COLOR_BLUE "Packet %u " COLOR_RESET ,  cp_nb_rx_rcv-1 );
 			fprintf(csvFile, "%u", cp_nb_rx_rcv-1 );
-			csvWriteLongInt(sf, "SF");
+			csvWriteLongInt(sf, "SF" COLOR_RED);
 			csvWriteLongInt(now.tv_sec, "TimeEpoch");
-			csvWriteFloat(SNR, "SNR");
+			csvWriteFloat(SNR, COLOR_RED "SNR");
 			csvWriteFloat(RSSI, "RSSI");
 			csvWriteFloat(packetRSSI, COLOR_RED "PacketRSSI");
 			csvWriteLongInt(receivedbytes, "Length");
@@ -1041,9 +1041,18 @@ int main () {
 		fprintf (stderr, "Unable to setup ISR: %s\n", strerror (errno));
 		return 1;
 	}
+	
+	// Empty the input buffer
+	char inputForCSV[61]; // You can type +-sixty characters to inject into the csv file. All text after the dot (to your left) fits, this sentence doesn't.
+	while (fgets(inputForCSV, 60, stdin) != NULL);
 
     while(1) {
 		// Wait for interrupt
+		if(fgets(inputForCSV, 60, stdin) != NULL){
+			// When typed text is received
+			fputs(inputForCSV, csvFile);
+			printf("\n");
+		}
     }
 
     return (0);
