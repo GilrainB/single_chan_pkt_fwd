@@ -1044,14 +1044,15 @@ int main () {
 	
 	// Empty the input buffer
 	char inputForCSV[61]; // You can type +-sixty characters to inject into the csv file. All text after the dot (to your left) fits, this sentence doesn't.
-	while (fgets(inputForCSV, 60, stdin) != NULL);
+	//while (fgets(inputForCSV, 60, stdin) != NULL);
+	printf("Ready!\n");
 
     while(1) {
 		// Wait for interrupt
 		if(fgets(inputForCSV, 60, stdin) != NULL){
 			// When typed text is received
 			fputs(inputForCSV, csvFile);
-			printf("\n");
+			printf(COLOR_RED "Added to CSV.\n" COLOR_RESET);
 		}
     }
 
