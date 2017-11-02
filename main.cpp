@@ -330,7 +330,7 @@ boolean receivePkt(char *payload)
         receivedbytes = receivedCount;
 
 #if PRINT_RAW_DATA
-		printf("Payload: " COLOR_GREEN "0x");
+		printf( COLOR_GREEN "Payload: 0x");
 #endif
 
         writeRegister(REG_FIFO_ADDR_PTR, currentAddr);
@@ -487,7 +487,7 @@ void SetupLoRa()
 		else
 		switch (errno){
 			case EEXIST:
-				printf("Directory '%s' exists.\n", s_fileDirectory);
+				//printf("Directory '%s' exists.\n", s_fileDirectory);
 				break;
 			default:
 				fprintf(stderr, "Can't access '%s' directory.", s_fileDirectory);
@@ -496,7 +496,7 @@ void SetupLoRa()
 		
 		printf("Initializing file '"COLOR_BLUE"%s"COLOR_RESET"'\n", filename);
 		csvFile = fopen(filename, "w");
-		printf("...");
+		//printf("...");
 		fprintf(csvFile,
 		"Packetno."
 		CSV_D "SF"
@@ -515,8 +515,8 @@ void SetupLoRa()
 		);
 	}
 	
-    printf("Started listening at SF%i on %.6lf Mhz.\n", sf,(double)freq/1000000);
-    printf(COLOR_GREEN "------------------" COLOR_RESET "\n");
+    printf(COLOR_GREEN"Started listening at SF%i on %.6lf Mhz.\n", sf,(double)freq/1000000);
+    printf("------------------" COLOR_RESET "\n\n");
 }
 // END LoRa hardware functions
 
@@ -590,15 +590,18 @@ void sendstat() {
 // Writes to file and to stdout
 void csvWriteLongInt(long int data, const char * description){
 	fprintf(csvFile, CSV_D "%li", data); 
-	printf( COLOR_YELLOW " %s" COLOR_RESET " %li", description, data);
+	const char * otherColor = (description[strlen(description)-1] == 'm')?"":COLOR_RESET;
+	printf( COLOR_YELLOW " %s%s %li", description, otherColor, data);
 } 
 void csvWriteHex(uint32_t data, const char * description){
-	fprintf(csvFile, CSV_D "\"%X\"", data); 
-	printf( COLOR_BLUE " %s" COLOR_RESET " 0x%X", description, data);
+	fprintf(csvFile, CSV_D "\"%X\"", data);
+	const char * otherColor = (description[strlen(description)-1] == 'm')?"":COLOR_RESET;
+	printf( COLOR_BLUE " %s%s 0x%X", description, otherColor, data);
 }
 void csvWriteFloat(float data, const char * description){
 	fprintf(csvFile, CSV_D "%f", data); 
-	printf( COLOR_YELLOW " %s" COLOR_RESET " %.2f", description, data);
+	const char * otherColor = (description[strlen(description)-1] == 'm')?"":COLOR_RESET;
+	printf( COLOR_YELLOW " %s%s %.2f", description, otherColor, data);
 }  
 
 /// This function collects information on the LoRaWAN payload, if present.
@@ -620,7 +623,7 @@ void readLoRaMacPayload(char* macpayload){
 	// Write CSV
 	csvWriteHex(header->DevAddr, "Address" COLOR_GREEN); //fprintf(csvFile, CSV_D "%u", header->DevAddr);
 	csvWriteLongInt(header->FCnt, "Framecounter");
-	csvWriteHex(*port, "Port" COLOR_RED);
+	csvWriteHex(*port, "Port" COLOR_GREEN);
 	// Show EncryptedData
 	b64_cnt = bin_to_b64((uint8_t *)EncryptedData, (macpayload + receivedbytes) - (char*)EncryptedData, (char *)(b64), 341); // Last 4 bytes are the MIC
 	
@@ -1050,9 +1053,18 @@ int main () {
     while(1) {
 		// Wait for interrupt
 		if(fgets(inputForCSV, 60, stdin) != NULL){
+			
+			// Type exit, q or quit (or any text starting with q that's shorter than 5 characters)
+			if ((inputForCSV[0]=='q' && strlen(inputForCSV) <= 5 ) || strcmp(inputForCSV, "exit\n") == 0) {
+				printf(COLOR_RED "Exiting program.\n\n" COLOR_RESET);
+				fflush(stdout); fflush(csvFile); 
+				fclose(csvFile);
+				exit(0);
+			}
+				
 			// When typed text is received
-			fputs(inputForCSV, csvFile);
-			printf(COLOR_RED "Added to CSV.\n" COLOR_RESET);
+			fputs(inputForCSV, csvFile); // newline is included in inputForCSV(not in fputs)
+			printf(COLOR_RED "Added %s to CSV.\n\n" COLOR_RESET, inputForCSV);
 		}
     }
 
