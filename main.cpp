@@ -68,24 +68,24 @@ int dio0  = 7;
 int RST   = 0;
 
 // Set spreading factor (SF7 - SF12)
-sf_t sf = SF7;
+sf_t sf = SF12;
 
 // Set center frequency
 uint32_t  freq = 868100000; // in Mhz! (868.1)
 
 // Set location
-float lat=51.916622;
-float lon=4.46335460;
-int   alt=15;
+float lat=0.0f;
+float lon=0.0f;
+int   alt=1;
 
 /* Informal status fields */
-static char platform[24]    = "Single Channel Gateway";  /* platform definition */
-static char email[40]       = "y.elbali88@gmail.com";                        /* used for contact email */
-static char description[64] = "developer";                        /* used for free form description */
+static char platform[]      = "Single Channel SX1276 Gateway";          /* platform definition */
+static char email[40]       = "gilrain25@gmail.com";                    /* used for contact email */
+static char description[64] = "Rpi-SX1276 DIY LoRa Gateway/packet forwarder SF12"; /* used for free form description */
 
 // define servers
 // TODO: use host names and dns
-#define SERVER1 "52.169.76.203"    // The Things Network: croft.thethings.girovito.nl
+#define SERVER1 "52.169.76.203"    // The Things Network: eu.thethings.network:1901
 //#define SERVER2 "192.168.1.10"      // local
 #define PORT 1700                   // The port on which to send data
 
@@ -556,7 +556,7 @@ int main () {
     si_other.sin_port = htons(PORT);
 
     ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name, "eth0", IFNAMSIZ-1);  // can we rely on eth0?
+    strncpy(ifr.ifr_name, "wlan0", IFNAMSIZ-1);  // can we rely on eth0?
     ioctl(s, SIOCGIFHWADDR, &ifr);
 
     /* display result */
