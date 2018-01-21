@@ -1046,8 +1046,9 @@ int main () {
 	}
 	
 	// Empty the input buffer
-	char inputForCSV[61]; // You can type +-sixty characters to inject into the csv file. All text after the dot (to your left) fits, this sentence doesn't.
+	char inputForCSV[61]; // You can type +-sixty characters to inject into the csv file. The whole previous sentence fits in 61 chars(including the \0).
 	//while (fgets(inputForCSV, 60, stdin) != NULL);
+	byte changes = 0;
 	printf("Ready!\n");
 
     while(1) {
@@ -1063,6 +1064,76 @@ int main () {
 			}
 				
 			// When typed text is received
+			// Check its contents and execute the command
+			if(strcmp(inputForCSV, "r\n") == 0 || strcmp(inputForCSV, "reset\n") == 0 || strcmp(inputForCSV, "sf12\n") == 0) {
+				// Type r, reset or sf12 to reset the antenna to SF 12.
+				if(sf != 12) {
+					sf = (sf_t)12;
+					changes |= 1;
+				} else
+					printf("Antenna is already at sf 12.\n");
+			} else if(strcmp(inputForCSV, "sf11\n") == 0) {
+				// Type sf11 to set the antenna to SF 11.
+				if(sf != 11) {
+					sf = (sf_t)11;
+					changes |= 1;
+				} else
+					printf("Antenna is already at sf 11.\n");
+			} else if(strcmp(inputForCSV, "sf10\n") == 0) {
+				// Type sf10 to set the antenna to SF 10.
+				if(sf != 10) {
+					sf = (sf_t)10;
+					changes |= 1;
+				} else
+					printf("Antenna is already at sf 10.\n");
+			} else if(strcmp(inputForCSV, "sf9\n") == 0) {
+				// Type sf9 to set the antenna to SF 9.
+				if(sf != 9) {
+					sf = (sf_t)9;
+					changes |= 1;
+				} else
+					printf("Antenna is already at sf 9.\n");
+			} else if(strcmp(inputForCSV, "sf8\n") == 0) {
+				// Type sf8 to set the antenna to SF 8.
+				if(sf != 8) {
+					sf = (sf_t)8;
+					changes |= 1;
+				} else
+					printf("Antenna is already at sf 8.\n");
+			} else if(strcmp(inputForCSV, "sf7\n") == 0) {
+				// Type sf7 to set the antenna to SF 7.
+				if(sf != 7) {
+					sf = (sf_t)7;
+					changes |= 1;
+				} else
+					printf("Antenna is already at sf 7.\n");
+			}
+			
+			
+			///////// Copied from void readLoRaMacPayload(char* macpayload){}
+			
+			if (changes & 0x01) {
+				writeRegister(REG_OPMODE, SX72_MODE_SLEEP); // Switch to sleep
+				writeRegister(REG_MODEM_CONFIG2,(sf<<4) | 0x04); // Change SF
+				writeRegister(REG_OPMODE, SX72_MODE_RX_CONTINUOS); // Switch back to continuous RX
+				
+				byte value = 0;
+#ifndef LNA_GAIN
+				// If LNA gain is defined, ACG must not be set to automatic, otherwise
+				// Set LNA_GAIN to auto automatic, using the internal AGC loop
+				value = 0x04;
+#endif
+				if (sf == SF11 || sf == SF12) {
+					value |= 0x08; // enable LowDataRateOptimize
+				}
+				writeRegister(REG_MODEM_CONFIG3, value); // If this value is not changed, packets get corrupted.
+				
+				printf(COLOR_BLUE "\tNow listening on SF%d" COLOR_RESET, (int)sf);
+				// log the change to the csv file(don't skip the logging part)
+			}
+			///////// END of copy
+			
+			// Else, add it to the csv file
 			fputs(inputForCSV, csvFile); // newline is included in inputForCSV(not in fputs)
 			printf(COLOR_RED "Added %s to CSV.\n\n" COLOR_RESET, inputForCSV);
 		}
