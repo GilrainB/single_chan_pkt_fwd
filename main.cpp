@@ -21,6 +21,7 @@
 #include <cstring>
 #include <sys/stat.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -1008,9 +1009,11 @@ int main () {
     pinMode(dio0, INPUT);
     pinMode(RST, OUTPUT);
 
-    //int fd = 
-    wiringPiSPISetup(CHANNEL, 500000);
-    //cout << "Init result: " << fd << endl;
+    
+	if(wiringPiSPISetup(CHANNEL, 500000) == -1){
+		printf("ERROR during wiringPiSPISetup(), %i\n", errno);
+		exit(errno);
+	}
 
     SetupLoRa_(LoRaChan_0, SF12);
 
@@ -1137,6 +1140,7 @@ int main () {
 			fputs(inputForCSV, csvFile); // newline is included in inputForCSV(not in fputs)
 			printf(COLOR_RED "Added %s to CSV.\n\n" COLOR_RESET, inputForCSV);
 		}
+		sleep(1); // sleep for a second
     }
 
     return (0);
