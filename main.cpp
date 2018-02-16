@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -984,9 +985,21 @@ void gpioInterrupt(){
 
 // END Convenience functions
 
+// Thread
+void* lora_thread(void* argument) {
+	
+	while(1){
+		gpioInterrupt();
+		delay(1);
+	}
+	return NULL;
+}
+
+
 int main () {
 
     struct timeval nowtime;
+	pthread_t pt_loRaThread;
 #if GATEWAY_CONNECTED_TO_TTN
 #endif
 	
@@ -1043,10 +1056,13 @@ int main () {
 #endif
 
 	// Setup interrupt for dio0(raspberry GPIO 7)
-	if ( wiringPiISR (dio0, INT_EDGE_RISING, &gpioInterrupt) < 0 ) {
-		fprintf (stderr, "Unable to setup ISR: %s\n", strerror (errno));
-		return 1;
-	}
+	//if ( wiringPiISR (dio0, INT_EDGE_RISING, &gpioInterrupt) < 0 ) {
+	//	fprintf (stderr, "Unable to setup ISR: %s\n", strerror (errno));
+	//	return 1;
+	//}
+	// Spawn the LoRa thread
+	pthread_create(&pt_loRaThread, NULL, lora_thread, NULL);
+	
 	
 	// Empty the input buffer
 	char inputForCSV[61]; // You can type +-sixty characters to inject into the csv file. The whole previous sentence fits in 61 chars(including the \0).
