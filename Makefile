@@ -3,12 +3,12 @@
 
 CC=g++
 CFLAGS=-c -Wall
-LIBS=-lwiringPi
+LIBS=-lwiringPi -lpthread 
 
 all: single_chan_pkt_fwd
 
 single_chan_pkt_fwd: base64.o main.o
-	$(CC) main.o base64.o $(LIBS) -o single_chan_pkt_fwd
+	$(CC) -O2 main.o base64.o $(LIBS) -o single_chan_pkt_fwd
 
 main.o: main.cpp
 	$(CC) $(CFLAGS) main.cpp
