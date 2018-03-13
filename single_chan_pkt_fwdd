@@ -19,7 +19,7 @@ set -e
 USERNAME="pi"
 
 PIDFILE=/var/run/single_chan_pkt_fwdd.pid
-DAEMON=/home/pi/single_chan_pkt_fwd/run.sh
+DAEMON=/home/pi/single_chan_pkt_fwd/single_chan_pkt_fwd
 SERVICENAME="single_chan_pkt_fwdd"
 DAEMONARGS=""
 
