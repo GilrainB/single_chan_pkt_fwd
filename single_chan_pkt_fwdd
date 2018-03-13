@@ -1,0 +1,127 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:		single_chan_pkt_fwdd
+# Required-Start:	$remote_fs $syslog
+# Required-Stop:	$remote_fs $syslog
+# Default-Start:	2 3 4 5
+# Default-Stop:		0 1 6
+# Short-Description:	single_chan_pkt_fwdd
+# Description: 
+#  This service starts and stops the single_chan_pkt_fwd program in /home/pi/single_chan_pkt_fwd/single_chan_pkt_fwd and stores all received LoRa data. It uses the run.sh file that is part of the program(so time might be synchronized on start)
+#  Use 'sudo cat /var/log/syslog | grep -a single_chan_pkt_fwdd' to get standard output.(could be run.sh)
+#  Use 'sudo tail -f /var/log/syslog | grep -a single_chan_pkt_fwdd' to get new standard output.
+#  To add the service to the list of automatically starting services, execute 'chkconfig --add single_chan_pkt_fwdd' and then 'chkconfig single_chan_pkt_fwdd on' (you may need to install this)
+### END INIT INFO
+
+set -e
+
+USERNAME="pi"
+
+PIDFILE=/var/run/single_chan_pkt_fwdd.pid
+DAEMON=/home/pi/single_chan_pkt_fwd/run.sh
+SERVICENAME="single_chan_pkt_fwdd"
+DAEMONARGS=""
+
+# /etc/init.d/single_chan_pkt_fwdd: start and stop the single_chan_pkt_fwd single channel packet logger
+
+test -x ${DAEMON} || exit 0
+
+umask 022
+
+. /lib/lsb/init-functions
+
+# Are we running from init?
+run_by_init() {
+    ([ "$previous" ] && [ "$runlevel" ]) || [ "$runlevel" = S ]
+}
+
+export PATH="${PATH:+$PATH:}/usr/sbin:/sbin"
+
+case "$1" in
+  start)
+	if init_is_upstart; then
+	    exit 1
+	fi
+	log_daemon_msg "Starting daemon" ${SERVICENAME}
+	rm -f $PIDFILE
+	if start-stop-daemon -v --start --chuid $USERNAME --background -C --make-pidfile --pidfile ${PIDFILE} --remove-pidfile --exec ${DAEMON} ; then
+	    log_end_msg 0
+	else
+	    log_end_msg 1
+	fi
+	;;
+  stop)
+	if init_is_upstart; then
+	    exit 0
+	fi
+	log_daemon_msg "Stopping daemon" ${SERVICENAME}
+	if start-stop-daemon --stop --chuid $USERNAME --quiet --oknodo --pidfile ${PIDFILE}; then
+	    log_end_msg 0
+	    rm -f ${PIDFILE}
+	else
+	    log_end_msg 1
+	fi
+	;;
+
+  reload|force-reload|restart)
+	if init_is_upstart; then
+	    exit 1
+	fi
+	log_daemon_msg "Restarting daemon" ${SERVICENAME}
+	if start-stop-daemon --stop --chuid $USERNAME --quiet --oknodo --retry 30 --pidfile ${PIDFILE}; then
+	    rm -f ${PIDFILE}
+	fi
+	rm -f ${PIDFILE}
+	if start-stop-daemon --start --chuid $USERNAME --quiet --background -C --make-pidfile --pidfile ${PIDFILE} --remove-pidfile --exec ${DAEMON} ; then
+	    log_end_msg 0
+	else
+	    log_end_msg 1
+	fi
+	;;
+
+  try-restart)
+	if init_is_upstart; then
+	    exit 1
+	fi
+	log_daemon_msg "Try-Restarting " ${SERVICENAME}
+	set +e
+	start-stop-daemon --stop --chuid $USERNAME --quiet --retry 30 --pidfile ${PIDFILE}
+	RET="$?"
+	set -e
+	case $RET in
+	    0)
+		# old daemon stopped
+		rm -f ${PIDFILE}
+		if start-stop-daemon --start --chuid $USERNAME --quiet --background -C --make-pidfile --pidfile ${PIDFILE} --remove-pidfile --exec ${DAEMON} ; then
+		    log_end_msg 0
+		else
+		    log_end_msg 1
+		fi
+		;;
+	    1)
+		# daemon not running
+		log_progress_msg "(not running)"
+		log_end_msg 0
+		;;
+	    *)
+		# failed to stop
+		log_progress_msg "(failed to stop)"
+		log_end_msg 1
+		;;
+	esac
+	;;
+
+  status)
+	if init_is_upstart; then
+	    exit 1
+	fi
+	status_of_proc -p ${PIDFILE} ${DAEMON} && exit 0 || exit $?
+	;;
+
+  *)
+	log_action_msg "Usage: /etc/init.d/single_chan_pkt_fwdd {start|stop|reload|force-reload|restart|try-restart|status}"
+	exit 1
+esac
+
+exit 0
