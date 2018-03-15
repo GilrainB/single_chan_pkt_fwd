@@ -11,6 +11,7 @@
 #  This service starts and stops the single_chan_pkt_fwd program in /home/pi/single_chan_pkt_fwd/single_chan_pkt_fwd and stores all received LoRa data. It uses the run.sh file that is part of the program(so time might be synchronized on start)
 #  Use 'sudo cat /var/log/syslog | grep -a single_chan_pkt_fwdd' to get standard output.(could be run.sh)
 #  Use 'sudo tail -f /var/log/syslog | grep -a single_chan_pkt_fwdd' to get new standard output.
+#  You could also use 'sudo systemctl status single_chan_pkt_fwdd'
 #  To add the service to the list of automatically starting services, execute 'chkconfig --add single_chan_pkt_fwdd' and then 'chkconfig single_chan_pkt_fwdd on' (you may need to install this)
 ### END INIT INFO
 
